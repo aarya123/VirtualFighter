@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -32,7 +33,12 @@ public class PlayActivity extends Activity {
     Game game = new Game();
     PebbleKit.PebbleDataReceiver pebbleDataReceiver;
     boolean isHost = true, mStopHandler = false;
-    Handler mHandler = new Handler();
+    Handler mBackgroundHandler, mForegroundHandler;
+    HandlerThread mHandlerThread = new HandlerThread("Fondler") {
+        protected void onLooperPrepared() {
+            mBackgroundHandler = new Handler(getLooper());
+        }
+    };
     int maxHeight = 0;
 
     //Need a spot to accept and set client command
@@ -45,6 +51,7 @@ public class PlayActivity extends Activity {
         clientHealthBar = findViewById(R.id.clientHealthBar);
         hostAction = (TextView) findViewById(R.id.hostAction);
         clientAction = (TextView) findViewById(R.id.clientAction);
+        mHandlerThread.start();
         startButton.setEnabled(isHost);
         otherPlayer = SetupActivity.otherPlayer;
         startButton.setOnClickListener(new View.OnClickListener() {
@@ -79,7 +86,7 @@ public class PlayActivity extends Activity {
                             clientHealthBar.setLayoutParams(temp);
                         }
                         if (!mStopHandler) {
-                            mHandler.postDelayed(this, 500);
+                            mBackgroundHandler.postDelayed(this, 500);
                         }
                     }
                 };
@@ -89,12 +96,12 @@ public class PlayActivity extends Activity {
                         Log.d("MoveReceived", move.toString());
                         game.setClientCommand(move);
                         if (!mStopHandler) {
-                            mHandler.postDelayed(this, 100);
+                            mBackgroundHandler.postDelayed(this, 100);
                         }
                     }
                 };
-                mHandler.post(runnable);
-                mHandler.post(otherPlayerUpdater);
+                mBackgroundHandler.post(runnable);
+                mBackgroundHandler.post(otherPlayerUpdater);
             }
         });
     }
