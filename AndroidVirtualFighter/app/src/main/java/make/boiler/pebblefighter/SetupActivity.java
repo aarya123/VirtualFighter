@@ -21,6 +21,9 @@ import android.widget.RadioButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.IOException;
+
+import make.boiler.pebblefighter.Game.HostConnecter;
 import make.boiler.pebblefighter.Game.HostSearch;
 import make.boiler.pebblefighter.Game.PlayerListener;
 
@@ -34,10 +37,10 @@ public class SetupActivity extends Activity {
     private RadioButton multiPlayerClient;
     private Button start;
 
+    private BluetoothSocket otherPlayer;
+
     private static int REQUEST_ENABLE_BT = 1;
     private static int REQUEST_ENABLE_BT_DISCOVERABLE = 2;
-
-    public static BluetoothSocket otherPlayer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -91,10 +94,9 @@ public class SetupActivity extends Activity {
                     return tv;
                 }
             };
-            ListView listView = new ListView(this);
-            listView.setAdapter(hostAdapter);
-
-            final AlertDialog hostDialog = new AlertDialog.Builder(this)
+            final AlertDialog hostDialog;
+            final ListView listView = new ListView(this);
+            hostDialog = new AlertDialog.Builder(this)
                     .setTitle("Select Host")
                     .setOnCancelListener(new DialogInterface.OnCancelListener() {
                         @Override
@@ -107,8 +109,7 @@ public class SetupActivity extends Activity {
                         @Override
                         public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                             hostSearch.stopSearch();
-                            otherPlayer = (BluetoothSocket) parent.getAdapter().getItem(position);
-                            Toast.makeText(SetupActivity.this, "Selected host " + otherPlayer.getRemoteDevice().getName(), Toast.LENGTH_LONG).show();
+                            Toast.makeText(SetupActivity.this, "Selected host " + hostAdapter.getItem(position).getName(), Toast.LENGTH_LONG).show();
                         }
 
                         @Override
@@ -118,6 +119,80 @@ public class SetupActivity extends Activity {
                     })
                     .setView(listView)
                     .create();
+            listView.setAdapter(hostAdapter);
+            listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                @Override
+                public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                    final ProgressDialog hostConnectProgress = new ProgressDialog(SetupActivity.this);
+                    hostConnectProgress.setTitle("Connecting to host");
+                    hostConnectProgress.setIndeterminate(true);
+                    hostConnectProgress.setOnCancelListener(new DialogInterface.OnCancelListener() {
+                        @Override
+                        public void onCancel(DialogInterface dialog) {
+                            Toast.makeText(SetupActivity.this, "Canceling connecting to host!", Toast.LENGTH_LONG).show();
+                        }
+                    });
+                    HostConnecter connecter = new HostConnecter();
+                    connecter.setListener(new HostConnecter.Listener() {
+                        @Override
+                        public void onConnectToHost(final BluetoothSocket socket) {
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if(!hostConnectProgress.isShowing()) {
+                                        Log.v("HostConnect", "stopping due to dismiss");
+                                        try {
+                                            socket.close();
+                                        }
+                                        catch(IOException ioe) {
+                                            ioe.printStackTrace();
+                                        }
+                                    }
+                                    startGameAsClient(socket);
+                                }
+                            });
+
+                        }
+
+                        @Override
+                        public void onFailConnectToHost(BluetoothDevice device) {
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    if(!hostConnectProgress.isShowing()) {
+                                        Log.v("HostConnect", "fail to connect while canceled");
+                                        return;
+                                    }
+                                    hostConnectProgress.dismiss();
+                                    new AlertDialog.Builder(SetupActivity.this)
+                                            .setTitle("Problem connecting to host")
+                                            .setMessage("Try someone else")
+                                            .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                                                @Override
+                                                public void onClick(DialogInterface dialog, int which) {
+                                                    hostDialog.show();
+                                                    hostSearch.startSearch();
+                                                }
+                                            })
+                                            .setOnCancelListener(new DialogInterface.OnCancelListener() {
+                                                @Override
+                                                public void onCancel(DialogInterface dialog) {
+                                                    hostDialog.show();
+                                                    hostSearch.startSearch();
+                                                }
+                                            })
+                                            .create()
+                                            .show();
+                                }
+                            });
+                        }
+                    });
+                    hostDialog.dismiss();
+                    hostConnectProgress.show();
+                    hostSearch.stopSearch();
+                    connecter.connectToHost(hostAdapter.getItem(position));
+                }
+            });
             hostSearch.setListener(new HostSearch.Listener() {
 
                 @Override
@@ -125,16 +200,7 @@ public class SetupActivity extends Activity {
                     hostAdapter.add(device);
                 }
 
-                @Override
-                public void onConnectToHost(BluetoothSocket socket) {
-                }
-
-                @Override
-                public void onFailToConnectToHost(BluetoothDevice device) {
-                    Log.w("SetupActivity", "failed to connect to host " + device.getName() + " " + device.getAddress());
-                }
             });
-
             hostDialog.show();
             hostSearch.startSearch();
         }
@@ -179,6 +245,7 @@ public class SetupActivity extends Activity {
                                     @Override
                                     public void onClick(DialogInterface dialog, int which) {
                                         Toast.makeText(SetupActivity.this, "accepted player " + player.getRemoteDevice().getName(), Toast.LENGTH_LONG).show();
+                                        startGameAsHost(player);
                                     }
                                 })
                                 .create();
@@ -223,5 +290,13 @@ public class SetupActivity extends Activity {
                 Toast.makeText(this, "You didn't enable bluetooth discoverable mode! Cannot do multiplayer hosting!", Toast.LENGTH_LONG).show();
             }
         }
+    }
+
+    private void startGameAsClient(BluetoothSocket host) {
+
+    }
+
+    private void startGameAsHost(BluetoothSocket client) {
+
     }
 }
