@@ -1,3 +1,7 @@
+//block - everything decreases
+//punch - everything decreases
+
+
 #include "pebble.h"
 
 #define HISTORY 50
@@ -14,6 +18,16 @@ int maxX=0, maxY=0, maxZ=0;
 TextLayer *minText;
 char minTextArr[50];
 int minX=0, minY=0, minZ=0;
+
+int averageHistory[][3]={{0,0,0},{0,0,0},{0,0,0}};
+int counter=0;
+
+/*static int abs(int x){
+    if(x<0)
+        return -x;
+    else
+        return x;
+}*/
 
 static void checkMinMax(int x, int y, int z){
     if(x>maxX){
@@ -35,6 +49,35 @@ static void checkMinMax(int x, int y, int z){
             minZ=z;
         }
 }
+
+static int getPrevCounter(){
+    if(counter==0)
+        return 2;
+    else
+        return counter-1;
+}
+
+static int getNextCounter(){
+    if(counter==2)
+        return 0;
+    else
+        return counter+1;
+}
+
+static int isPunch(){
+    if(averageHistory[getPrevCounter()][0]-averageHistory[counter][0]>100&&averageHistory[getNextCounter()][0]-averageHistory[counter][0]>100)
+        return true;
+    else
+        return false;
+}
+
+static int isBlock(){
+    if(averageHistory[getPrevCounter()][2]-averageHistory[counter][2]>100&&averageHistory[getNextCounter()][2]-averageHistory[counter][2]>100)
+        return true;
+    else
+        return false;
+}
+
 static void averageAccel(AccelRawData *data, int num_samples, int *avg){
     if(num_samples==0)
         return;
@@ -48,6 +91,19 @@ static void averageAccel(AccelRawData *data, int num_samples, int *avg){
     avg[0]/=num_samples;
     avg[1]/=num_samples;
     avg[2]/=num_samples;
+    averageHistory[counter][0]=avg[0];
+    averageHistory[counter][1]=avg[1];
+    averageHistory[counter][2]=avg[2];
+    //Because I'm an idiot
+    counter--;
+    if(isBlock())
+        APP_LOG(APP_LOG_LEVEL_INFO,"block!");
+    else if(isPunch())
+        APP_LOG(APP_LOG_LEVEL_INFO,"punch!");
+    counter+=2;
+    if(counter>=3){
+        counter=0;
+    }
 }
 
 static void accelSubscriber(AccelRawData *data, uint32_t num_samples, uint64_t timestamp){
@@ -57,7 +113,7 @@ static void accelSubscriber(AccelRawData *data, uint32_t num_samples, uint64_t t
     snprintf(maxTextArr,50,"Max: x=%d y=%d z=%d",maxX,maxY,maxZ);
     snprintf(minTextArr,50,"Min: x=%d y=%d z=%d",minX,minY,minZ);
     // APP_LOG(APP_LOG_LEVEL_INFO,"%d",(int)num_samples);
-    APP_LOG(APP_LOG_LEVEL_INFO,"%s",accelTextArr);
+    // APP_LOG(APP_LOG_LEVEL_INFO,"%s",accelTextArr);
     // APP_LOG(APP_LOG_LEVEL_INFO,"%s",maxTextArr);
     // APP_LOG(APP_LOG_LEVEL_INFO,"%s",minTextArr);
     text_layer_set_text(accelText, accelTextArr);
@@ -108,3 +164,5 @@ int main(void) {
     app_event_loop();
     deinit();
 }
+//Change in about 200 for x during punch
+//Change in about 100 for y during block
