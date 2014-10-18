@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.ParcelUuid;
+import android.os.Parcelable;
 import android.util.Log;
 
 import java.io.IOException;
@@ -47,13 +48,16 @@ public class HostSearch {
         if(!isSearching) {
             if (listener != null) {
                 for (BluetoothDevice device : bluetoothAdapter.getBondedDevices()) {
-                    if (isDeviceHost(device)) {
-                        listener.onDiscoverHost(device);
-                    }
+                    listener.onDiscoverHost(device);
                 }
             }
-            bluetoothAdapter.startDiscovery();
-            context.registerReceiver(mReceiver, new IntentFilter(BluetoothDevice.ACTION_FOUND));
+            boolean state = bluetoothAdapter.startDiscovery();
+            IntentFilter filter = new IntentFilter();
+            filter.addAction(BluetoothDevice.ACTION_FOUND);
+            filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED);
+            filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
+            context.registerReceiver(mReceiver, filter);
+            Log.v("Start Search", "register receiver + start discovery " + state);
         }
         isSearching = true;
     }
@@ -109,9 +113,6 @@ public class HostSearch {
     }
 
     public void connectToHost(BluetoothDevice device) {
-        if(!isDeviceHost(device)) {
-            throw new IllegalArgumentException("device has to be a host to connect!");
-        }
         stopSearch();
         new ConnectThread(device).start();
     }
@@ -124,20 +125,9 @@ public class HostSearch {
         isSearching = false;
     }
 
-    private boolean isDeviceHost(BluetoothDevice device) {
-        for(ParcelUuid parcelUuid : device.getUuids()) {
-            if(parcelUuid.getUuid().equals(myUUID)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private void onDiscoverDevice(BluetoothDevice device) {
         if(listener != null) {
-            if(isDeviceHost(device)) {
-                listener.onDiscoverHost(device);
-            }
+            listener.onDiscoverHost(device);
         }
     }
 
@@ -148,7 +138,21 @@ public class HostSearch {
             if (BluetoothDevice.ACTION_FOUND.equals(action)) {
                 // Get the BluetoothDevice object from the Intent
                 BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                Log.v("DISCOVER", device.getName() + ": " + device.getAddress());
+
+                Parcelable[] uuids = intent.getParcelableArrayExtra(BluetoothDevice.EXTRA_UUID);
+                if(uuids != null) {
+                    for (Parcelable uuid : uuids) {
+                        Log.v("UUID", uuid.toString());
+                    }
+                }
+                else {
+                    Log.v("UUID", "NO UUIDS for device " + device.getName() + " " + device.getAddress());
+                }
                 onDiscoverDevice(device);
+            }
+            else {
+                Log.v("ACTION", action);
             }
         }
     };
