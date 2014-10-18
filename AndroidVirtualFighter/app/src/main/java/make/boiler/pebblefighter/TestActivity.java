@@ -112,7 +112,11 @@ public class TestActivity extends Activity {
 
     protected void onDestroy() {
         super.onDestroy();
-        unregisterReceiver(mReceiver);
+        try {
+            unregisterReceiver(mReceiver);
+        }catch(RuntimeException e){
+            //Already unregistered
+        }
     }
 
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
