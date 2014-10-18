@@ -23,9 +23,6 @@ TextLayer *healthTextBottom;
 TextLayer *healthText;
 char healthTextArr[50];
 
-int averageHistory[][3]={{0,0,0},{0,0,0},{0,0,0}};
-int counter=0;
-
 int prevHealth=100;
 static const uint32_t const segments[] = {1000, 100, 1000, 100, 1000};
 VibePattern pat = {
@@ -61,74 +58,20 @@ static void checkMinMax(int x, int y, int z){
         }
 }
 
-static int getPrevCounter(){
-    if(counter==0)
-        return 2;
-    else
-        return counter-1;
-}
-
-static int getNextCounter(){
-    if(counter==2)
-        return 0;
-    else
-        return counter+1;
-}
-
-static int isPunch(){
-    if(averageHistory[getPrevCounter()][0]-averageHistory[counter][0]>100&&averageHistory[getNextCounter()][0]-averageHistory[counter][0]>100)
+static int isPunch(int *avg){
+    if(avg[1]<avg[2]&&avg[1]<avg[3])
         return true;
     else
         return false;
 }
 
-static int isBlock(){
-    if(averageHistory[getPrevCounter()][2]-averageHistory[counter][2]>100&&averageHistory[getNextCounter()][2]-averageHistory[counter][2]>100)
+static int isBlock(int *avg){
+    if((avg[1]<900&&avg[3]<avg[2]&&avg[3]<500)||(avg[3]<avg[1]&&avg[3]<avg[2]&&avg[0]<900))
         return true;
     else
         return false;
 }
 
-void send_int(uint8_t key, uint8_t cmd)
-{
-    DictionaryIterator *iter;
-    app_message_outbox_begin(&iter);
-    Tuplet value = TupletInteger(key, cmd);
-    dict_write_tuplet(iter, &value);
-    app_message_outbox_send();
-}
-
-static void averageAccel(AccelRawData *data, int num_samples, int *avg){
-    if(num_samples==0)
-        return;
-    for(int i=0;i<num_samples;i++){
-        int x=data[i].x,y=data[i].y,z=data[i].z;
-        checkMinMax(x,y,z);
-        avg[0]+=x;
-        avg[1]+=y;
-        avg[2]+=z;
-    }
-    avg[0]/=num_samples;
-    avg[1]/=num_samples;
-    avg[2]/=num_samples;
-    averageHistory[counter][0]=avg[0];
-    averageHistory[counter][1]=avg[1];
-    averageHistory[counter][2]=avg[2];
-    //Because I'm an idiot
-    counter--;
-    if(isBlock()){
-        APP_LOG(APP_LOG_LEVEL_INFO,"block!");
-        send_int(0,0);
-    }
-    else if(isPunch()){
-        APP_LOG(APP_LOG_LEVEL_INFO,"punch!");
-        send_int(0,1);
-    }
-    counter+=2;
-    if(counter>=3){
-        counter=0;
-    }
-}
 float my_sqrt(int num)
 {
     float a, p, e = 0.001, b;
@@ -143,19 +86,53 @@ float my_sqrt(int num)
     return a;
 }
 
+void send_int(uint8_t key, uint8_t cmd)
+{
+    DictionaryIterator *iter;
+    app_message_outbox_begin(&iter);
+    Tuplet value = TupletInteger(key, cmd);
+    dict_write_tuplet(iter, &value);
+    app_message_outbox_send();
+}
+static int majorDrop(int *avg){
+    return avg[0]<900;
+}
+static void averageAccel(AccelRawData *data, int num_samples, int *avg){
+    if(num_samples==0)
+        return;
+    int total[]={0,0,0};
+    for(int i=0;i<num_samples;i++){
+        int x=data[i].x,y=data[i].y,z=data[i].z;
+        checkMinMax(x,y,z);
+        total[0]+=x;
+        total[1]+=y;
+        total[2]+=z;
+    }
+    total[0]/=num_samples;
+    total[1]/=num_samples;
+    total[2]/=num_samples;
+    avg[0]=my_sqrt(total[0]*total[0]+total[1]*total[1]+total[2]*total[2]);
+    avg[1]=my_sqrt(total[0]*total[0]+total[1]*total[1]);
+    avg[2]=my_sqrt(total[0]*total[0]+total[2]*total[2]);
+    avg[3]=my_sqrt(total[1]*total[1]+total[2]*total[2]);    
+    if(isBlock(avg)){
+        APP_LOG(APP_LOG_LEVEL_INFO,"block!");
+        send_int(0,0);
+    }
+    else if(isPunch(avg)&&majorDrop(avg)){
+        APP_LOG(APP_LOG_LEVEL_INFO,"punch!");
+        send_int(0,1);
+    }
+}
+
 static void accelSubscriber(AccelRawData *data, uint32_t num_samples, uint64_t timestamp){
-    int avg[]={0,0,0};
+    int avg[]={0,0,0,0};
     averageAccel(data,num_samples,avg);
-    snprintf(accelTextArr, 50, "x=%d y=%d z=%d", avg[0],avg[1],avg[2]);
-    int mag=(int)my_sqrt(avg[0]*avg[0]+avg[1]*avg[1]+avg[2]*avg[2]);
-    int xy=(int)my_sqrt(avg[0]*avg[0]+avg[1]*avg[1]);
-    int xz=(int)my_sqrt(avg[0]*avg[0]+avg[2]*avg[2]);
-    int yz=(int)my_sqrt(avg[1]*avg[1]+avg[2]*avg[2]);
-    snprintf(maxTextArr,50,"Max: x=%d y=%d z=%d",maxX,maxY,maxZ);
-    snprintf(minTextArr,50,"Min: x=%d y=%d z=%d",minX,minY,minZ);
+    snprintf(accelTextArr, 50, "mag=%d xy=%d xz=%d yz=%d", avg[0],avg[1],avg[2],avg[3]);
+    // snprintf(maxTextArr,50,"Max: x=%d y=%d z=%d",maxX,maxY,maxZ);
+    // snprintf(minTextArr,50,"Min: x=%d y=%d z=%d",minX,minY,minZ);
     // APP_LOG(APP_LOG_LEVEL_INFO,"%d",(int)num_samples);
     // APP_LOG(APP_LOG_LEVEL_INFO,"%s",accelTextArr);
-    APP_LOG(APP_LOG_LEVEL_INFO,"Full=%d xy=%d xz=%d yz=%d",mag,xy,xz,yz);
     // APP_LOG(APP_LOG_LEVEL_INFO,"%s",maxTextArr);
     // APP_LOG(APP_LOG_LEVEL_INFO,"%s",minTextArr);
     text_layer_set_text(accelText, accelTextArr);
