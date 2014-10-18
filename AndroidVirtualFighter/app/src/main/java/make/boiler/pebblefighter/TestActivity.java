@@ -10,7 +10,10 @@ import android.content.IntentFilter;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.ArrayAdapter;
+import android.widget.CompoundButton;
 import android.widget.ListView;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -26,21 +29,15 @@ import make.boiler.pebblefighter.Game.Move;
 
 public class TestActivity extends Activity {
 
-    TextView textView;
     ListView listView;
     ArrayAdapter<String> adapter;
     BluetoothAdapter bluetoothAdapter;
-    PebbleKit.PebbleDataReceiver pebbleDataReceiver;
-    public final static UUID pebbleApp = UUID.fromString("1b4eb327-bb18-4b30-957f-8ab246f3e561");
     static final int REQUEST_ENABLE_BT = 1;
-    boolean isHost = true;
-    Game game;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_test);
-        textView = (TextView) findViewById(R.id.textView);
-        /*listView = (ListView) findViewById(R.id.listView);
+        listView = (ListView) findViewById(R.id.listView);
         adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1);
         listView.setAdapter(adapter);
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -55,36 +52,17 @@ public class TestActivity extends Activity {
                 if (bluetoothAdapter.startDiscovery()) {
                     // Register the BroadcastReceiver
                     IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
-                    registerReceiver(pebbleDataReceiver, filter); // Don't forget to unregister during onDestroy
+                    registerReceiver(mReceiver, filter); // Don't forget to unregister during onDestroy
                 } else {
                     Toast.makeText(this, "Can't start discovery!", Toast.LENGTH_LONG).show();
                 }
             }
-        }*/
-        if (isHost) {
-            game = new Game();
-        } else {
-            //Send commands and wait for health
         }
     }
 
-    protected void onResume() {
-        super.onResume();
-        pebbleDataReceiver = new PebbleKit.PebbleDataReceiver(pebbleApp) {
-            public void receiveData(Context context, int transactionId, PebbleDictionary data) {
-                PebbleKit.sendAckToPebble(context, transactionId);
-                if (data.getUnsignedInteger(0) != null) {
-                    Move move = Move.values()[data.getUnsignedInteger(0).intValue()];
-                    if(isHost) {
-                        game.setHostCommand(move);
-                    }
-                }
-            }
-        };
-        PebbleKit.registerReceivedDataHandler(this, pebbleDataReceiver);
-    }
 
-    /*private void showBondedList() {
+
+    private void showBondedList() {
         Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
         // If there are paired devices
         if (pairedDevices.size() > 0) {
@@ -127,10 +105,5 @@ public class TestActivity extends Activity {
                 Toast.makeText(this, "you should allow bluetooth!", Toast.LENGTH_LONG).show();
             }
         }
-    }*/
-
-    protected void onPause() {
-        super.onPause();
-        unregisterReceiver(pebbleDataReceiver);
     }
 }

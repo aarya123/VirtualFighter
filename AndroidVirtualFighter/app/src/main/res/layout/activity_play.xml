@@ -1,0 +1,55 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <RadioGroup
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_gravity="center">
+
+        <RadioButton
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Host"
+            android:textColor="@android:color/holo_red_dark"
+            android:id="@+id/hostButton" />
+
+        <RadioButton
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Client"
+            android:textColor="@android:color/holo_blue_dark"
+            android:id="@+id/clientButton" />
+    </RadioGroup>
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Start"
+        android:id="@+id/startButton"
+        android:layout_gravity="center_horizontal" />
+
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:orientation="horizontal">
+        <View
+            android:layout_width="0px"
+            android:layout_height="fill_parent"
+            android:layout_weight=".5"
+            android:background="@android:color/holo_red_dark"
+            android:layout_gravity="bottom"
+            android:id="@+id/hostHealthBar"/>
+        <View
+            android:layout_width="0px"
+            android:layout_height="fill_parent"
+            android:layout_weight=".5"
+            android:background="@android:color/holo_blue_dark"
+            android:layout_gravity="bottom"
+            android:id="@+id/clientHealthBar"/>
+    </LinearLayout>
+
+
+</LinearLayout>
