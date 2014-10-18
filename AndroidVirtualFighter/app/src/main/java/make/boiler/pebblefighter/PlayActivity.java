@@ -9,14 +9,13 @@ import android.os.Handler;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.CompoundButton;
 import android.widget.LinearLayout;
-import android.widget.RadioButton;
 import android.widget.TextView;
 
 import com.getpebble.android.kit.PebbleKit;
 import com.getpebble.android.kit.util.PebbleDictionary;
 
+import java.io.IOException;
 import java.util.UUID;
 
 import make.boiler.pebblefighter.Game.Game;
@@ -25,16 +24,16 @@ import make.boiler.pebblefighter.Game.Move;
 public class PlayActivity extends Activity {
 
     public static final String EXTRA_ROLE = "role";
+    public final static UUID pebbleApp = UUID.fromString("1b4eb327-bb18-4b30-957f-8ab246f3e561");
+    public BluetoothSocket otherPlayer;
     Button startButton;
     View hostHealthBar, clientHealthBar;
     TextView hostAction, clientAction;
-    Game game=new Game();
+    Game game = new Game();
     PebbleKit.PebbleDataReceiver pebbleDataReceiver;
-    public final static UUID pebbleApp = UUID.fromString("1b4eb327-bb18-4b30-957f-8ab246f3e561");
-    boolean isHost=true, mStopHandler = false;
+    boolean isHost = true, mStopHandler = false;
     Handler mHandler = new Handler();
     int maxHeight = 0;
-    BluetoothSocket otherPlayer;
 
     //Need a spot to accept and set client command
     protected void onCreate(Bundle savedInstanceState) {
@@ -84,9 +83,37 @@ public class PlayActivity extends Activity {
                         }
                     }
                 };
+                Runnable otherPlayerUpdater = new Runnable() {
+                    public void run() {
+                        Move move = Move.values()[readIntFromOtherPlayer()];
+                        Log.d("MoveReceived", move.toString());
+                        game.setClientCommand(move);
+                        if (!mStopHandler) {
+                            mHandler.postDelayed(this, 100);
+                        }
+                    }
+                };
                 mHandler.post(runnable);
+                mHandler.post(otherPlayerUpdater);
             }
         });
+    }
+
+    public void writeIntToOtherPlayer(int value) {
+        try {
+            otherPlayer.getOutputStream().write(value);
+        } catch (IOException e) {
+            Log.e("PlayActivity", "Error writing move", e);
+        }
+    }
+
+    public int readIntFromOtherPlayer() {
+        try {
+            return otherPlayer.getInputStream().read();
+        } catch (IOException e) {
+            Log.e("PlayActivity", "Error reading move", e);
+        }
+        return 0;
     }
 
     protected void onResume() {
@@ -95,12 +122,11 @@ public class PlayActivity extends Activity {
             public void receiveData(Context context, int transactionId, PebbleDictionary data) {
                 PebbleKit.sendAckToPebble(context, transactionId);
                 if (data.getUnsignedInteger(0) != null) {
-                    Move move = Move.values()[data.getUnsignedInteger(0).intValue()];
+                    int value = data.getUnsignedInteger(0).intValue();
                     if (isHost) {
-                        game.setHostCommand(move);
+                        game.setHostCommand(Move.values()[value]);
                     } else {
-                        //Send to host
-                        throw new UnsupportedOperationException();
+                        writeIntToOtherPlayer(value);
                     }
                 }
             }

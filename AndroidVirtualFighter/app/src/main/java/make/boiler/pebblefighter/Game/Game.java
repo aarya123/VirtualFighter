@@ -1,6 +1,6 @@
 package make.boiler.pebblefighter.Game;
 
-import android.content.Context;
+import make.boiler.pebblefighter.PlayActivity;
 
 /**
  * Created by AnubhawArya on 10/18/14.
@@ -21,7 +21,7 @@ public class Game {
         client.setCommand(move);
     }
 
-    public void play(Context context) {
+    public void play(PlayActivity context) {
         host.doDamage(client.getCommand(), context);
         client.doDamage(host.getCommand(), context);
     }
