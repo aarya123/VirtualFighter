@@ -24,31 +24,58 @@
             android:id="@+id/clientButton" />
     </RadioGroup>
 
-    <Button
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:text="Start"
-        android:id="@+id/startButton"
-        android:layout_gravity="center_horizontal" />
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0px"
+            android:layout_weight=".33"
+            android:layout_height="fill_parent"
+            android:gravity="center"
+            android:textColor="@android:color/holo_red_dark"
+            android:text="BLOCK!!!"
+            android:id="@+id/hostAction" />
+
+        <Button
+            android:layout_width="0px"
+            android:layout_weight=".33"
+            android:layout_height="fill_parent"
+            android:text="Start"
+            android:id="@+id/startButton"
+            android:layout_gravity="center_horizontal" />
+
+        <TextView
+            android:layout_width="0px"
+            android:layout_weight=".33"
+            android:layout_height="fill_parent"
+            android:gravity="center"
+            android:textColor="@android:color/holo_blue_dark"
+            android:text="BLOCK!!!"
+            android:id="@+id/clientAction" />
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="fill_parent"
         android:layout_height="fill_parent"
         android:orientation="horizontal">
+
         <View
             android:layout_width="0px"
             android:layout_height="fill_parent"
             android:layout_weight=".5"
             android:background="@android:color/holo_red_dark"
             android:layout_gravity="bottom"
-            android:id="@+id/hostHealthBar"/>
+            android:id="@+id/hostHealthBar" />
+
         <View
             android:layout_width="0px"
             android:layout_height="fill_parent"
             android:layout_weight=".5"
             android:background="@android:color/holo_blue_dark"
             android:layout_gravity="bottom"
-            android:id="@+id/clientHealthBar"/>
+            android:id="@+id/clientHealthBar" />
     </LinearLayout>
 
 

@@ -5,7 +5,7 @@ import android.content.Context;
 import com.getpebble.android.kit.PebbleKit;
 import com.getpebble.android.kit.util.PebbleDictionary;
 
-import make.boiler.pebblefighter.TestActivity;
+import make.boiler.pebblefighter.PlayActivity;
 
 /**
  * Created by AnubhawArya on 10/18/14.
@@ -35,7 +35,7 @@ public class Player {
                 health -= 1;
             }
         } else if (theirMove == Move.BLOCK) {
-            health -= 3;
+            health -= 1;
         } else {
             health -= 2;
         }
@@ -46,9 +46,18 @@ public class Player {
         if (host) {
             PebbleDictionary dict = new PebbleDictionary();
             dict.addInt32(0, health);
-            PebbleKit.sendDataToPebble(context, TestActivity.pebbleApp, dict);
-        }else{
+            PebbleKit.sendDataToPebble(context, PlayActivity.pebbleApp, dict);
+        } else {
             //Send to other phone
+//            throw new UnsupportedOperationException();
         }
+    }
+
+    public int getHealth() {
+        return health;
+    }
+
+    public Move getMove() {
+        return move;
     }
 }
