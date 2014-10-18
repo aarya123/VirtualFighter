@@ -19,6 +19,9 @@ TextLayer *minText;
 char minTextArr[50];
 int minX=0, minY=0, minZ=0;
 
+TextLayer *healthText;
+char healthTextArr[50];
+
 int averageHistory[][3]={{0,0,0},{0,0,0},{0,0,0}};
 int counter=0;
 
@@ -78,6 +81,15 @@ static int isBlock(){
         return false;
 }
 
+void send_int(uint8_t key, uint8_t cmd)
+{
+    DictionaryIterator *iter;
+    app_message_outbox_begin(&iter);
+    Tuplet value = TupletInteger(key, cmd);
+    dict_write_tuplet(iter, &value);
+    app_message_outbox_send();
+}
+
 static void averageAccel(AccelRawData *data, int num_samples, int *avg){
     if(num_samples==0)
         return;
@@ -96,10 +108,14 @@ static void averageAccel(AccelRawData *data, int num_samples, int *avg){
     averageHistory[counter][2]=avg[2];
     //Because I'm an idiot
     counter--;
-    if(isBlock())
+    if(isBlock()){
         APP_LOG(APP_LOG_LEVEL_INFO,"block!");
-    else if(isPunch())
+        send_int(0,0);
+    }
+    else if(isPunch()){
         APP_LOG(APP_LOG_LEVEL_INFO,"punch!");
+        send_int(0,1);
+    }
     counter+=2;
     if(counter>=3){
         counter=0;
@@ -121,27 +137,54 @@ static void accelSubscriber(AccelRawData *data, uint32_t num_samples, uint64_t t
     text_layer_set_text(minText, minTextArr);
 }
 
+void process_tuple(Tuple *t)
+{
+    //int key = t->key;
+    APP_LOG(APP_LOG_LEVEL_INFO,"Got something!");
+    int value = t->value->int32;
+    APP_LOG(APP_LOG_LEVEL_INFO,"health=%d",value);
+    snprintf(healthTextArr, 50, "Health=%d", value);
+    text_layer_set_text(healthText, healthTextArr);
+}
+
+static void in_received_handler(DictionaryIterator *iter, void *context)
+{
+    Tuple *t = dict_read_first(iter);
+    while(t != NULL)
+    {
+        process_tuple(t);
+        t = dict_read_next(iter);
+    }
+}
+
 static void window_load(Window *window) {
     accelText = text_layer_create(GRect(0, 0, 144, 25));
     maxText=text_layer_create(GRect(0,25,144,25));
     minText=text_layer_create(GRect(0,50,144,25));
+    healthText=text_layer_create(GRect(0,75,144,25));
     text_layer_set_background_color(accelText, GColorClear);
     text_layer_set_background_color(maxText, GColorClear);
     text_layer_set_background_color(minText, GColorClear);
+    text_layer_set_background_color(healthText, GColorClear);
     text_layer_set_text_color(accelText, GColorBlack);
     text_layer_set_text_color(maxText, GColorBlack);
     text_layer_set_text_color(minText, GColorBlack);
+    text_layer_set_text_color(healthText, GColorBlack);
     text_layer_set_text(accelText,"Starting up...");
     text_layer_set_text(maxText,"Starting up...");
     text_layer_set_text(minText,"Starting up...");
+    text_layer_set_text(healthText,"Starting up...");
     layer_add_child(window_get_root_layer(window), (Layer*)accelText);
     layer_add_child(window_get_root_layer(window), (Layer*)maxText);
     layer_add_child(window_get_root_layer(window), (Layer*)minText);
+    layer_add_child(window_get_root_layer(window), (Layer*)healthText);
 }
 
 static void window_unload(Window *window) {
     text_layer_destroy(accelText);
     text_layer_destroy(maxText);
+    text_layer_destroy(minText);
+    text_layer_destroy(healthText);
 }
 
 static void init(void) {
@@ -150,8 +193,10 @@ static void init(void) {
       .load = window_load,
       .unload = window_unload
     });
-    window_stack_push(window, true);
+    app_message_register_inbox_received(in_received_handler);
+    app_message_open(app_message_inbox_size_maximum(), app_message_outbox_size_maximum());  
     accel_raw_data_service_subscribe(HISTORY, accelSubscriber);
+    window_stack_push(window, true);
 }
 
 static void deinit(void) {
@@ -164,5 +209,3 @@ int main(void) {
     app_event_loop();
     deinit();
 }
-//Change in about 200 for x during punch
-//Change in about 100 for y during block
