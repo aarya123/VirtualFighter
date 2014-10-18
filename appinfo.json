@@ -1,0 +1,17 @@
+{
+  "uuid": "1b4eb327-bb18-4b30-957f-8ab246f3e561",
+  "shortName": "VirtualFighter",
+  "longName": "VirtualFighter",
+  "companyName": "MakeAwesomeHappen",
+  "versionCode": 1,
+  "versionLabel": "1.0",
+  "watchapp": {
+    "watchface": false
+  },
+  "appKeys": {
+    "dummy": 0
+  },
+  "resources": {
+    "media": []
+  }
+}
