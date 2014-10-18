@@ -2,9 +2,11 @@ package make.boiler.pebblefighter;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CompoundButton;
@@ -22,36 +24,30 @@ import make.boiler.pebblefighter.Game.Move;
 
 public class PlayActivity extends Activity {
 
-    RadioButton hostButton, clientButton;
+    public static final String EXTRA_ROLE = "role";
     Button startButton;
     View hostHealthBar, clientHealthBar;
     TextView hostAction, clientAction;
     Game game=new Game();
     PebbleKit.PebbleDataReceiver pebbleDataReceiver;
     public final static UUID pebbleApp = UUID.fromString("1b4eb327-bb18-4b30-957f-8ab246f3e561");
-    boolean isHost = true, mStopHandler = false;
+    boolean isHost=true, mStopHandler = false;
     Handler mHandler = new Handler();
     int maxHeight = 0;
+    BluetoothSocket otherPlayer;
 
     //Need a spot to accept and set client command
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_play);
-        hostButton = (RadioButton) findViewById(R.id.hostButton);
-        clientButton = (RadioButton) findViewById(R.id.clientButton);
+        isHost = getIntent().getBooleanExtra(EXTRA_ROLE, true);
         startButton = (Button) findViewById(R.id.startButton);
         hostHealthBar = findViewById(R.id.hostHealthBar);
         clientHealthBar = findViewById(R.id.clientHealthBar);
         hostAction = (TextView) findViewById(R.id.hostAction);
         clientAction = (TextView) findViewById(R.id.clientAction);
-        hostButton.setChecked(isHost);
-        hostButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                isHost = b;
-                startButton.setEnabled(b);
-                startButton.setEnabled(false);
-            }
-        });
+        startButton.setEnabled(isHost);
+        otherPlayer = SetupActivity.otherPlayer;
         startButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 game = new Game();

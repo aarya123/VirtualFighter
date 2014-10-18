@@ -6,7 +6,6 @@ import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
@@ -37,7 +36,7 @@ public class SetupActivity extends Activity {
     private RadioButton multiPlayerClient;
     private Button start;
 
-    private BluetoothSocket otherPlayer;
+    public static BluetoothSocket otherPlayer;
 
     private static int REQUEST_ENABLE_BT = 1;
     private static int REQUEST_ENABLE_BT_DISCOVERABLE = 2;
@@ -62,16 +61,15 @@ public class SetupActivity extends Activity {
         return BluetoothAdapter.getDefaultAdapter();
     }
 
-    private  boolean isBluetoothAvailable() {
+    private boolean isBluetoothAvailable() {
         return getBluetoothAdapter() != null;
     }
 
     private void requestBluetoothEnabled() {
-        if(!getBluetoothAdapter().isEnabled()) {
+        if (!getBluetoothAdapter().isEnabled()) {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
-        }
-        else {
+        } else {
             onBluetoothEnabled();
         }
     }
@@ -84,9 +82,9 @@ public class SetupActivity extends Activity {
     }
 
     private void onBluetoothEnabled() {
-        if(multiPlayerClient.isChecked()) {
+        if (multiPlayerClient.isChecked()) {
             final HostSearch hostSearch = new HostSearch(this, getBluetoothAdapter());
-            final ArrayAdapter<BluetoothDevice>  hostAdapter = new ArrayAdapter<BluetoothDevice>(this, android.R.layout.simple_list_item_1){
+            final ArrayAdapter<BluetoothDevice> hostAdapter = new ArrayAdapter<BluetoothDevice>(this, android.R.layout.simple_list_item_1) {
                 @Override
                 public View getView(int position, View convertView, ViewGroup parent) {
                     TextView tv = (TextView) super.getView(position, convertView, parent);
@@ -139,28 +137,25 @@ public class SetupActivity extends Activity {
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
-                                    if(!hostConnectProgress.isShowing()) {
+                                    if (!hostConnectProgress.isShowing()) {
                                         Log.v("HostConnect", "stopping due to dismiss");
                                         try {
                                             socket.close();
-                                        }
-                                        catch(IOException ioe) {
+                                        } catch (IOException ioe) {
                                             ioe.printStackTrace();
                                         }
                                     }
                                     hostConnectProgress.dismiss();
                                     try {
                                         int response = socket.getInputStream().read();
-                                        if(response == 1) {
+                                        if (response == 1) {
                                             startGameAsClient(socket);
-                                        }
-                                        else {
+                                        } else {
                                             Toast.makeText(SetupActivity.this, "Failed due to host rejection", Toast.LENGTH_LONG).show();
                                             hostDialog.show();
                                             hostSearch.startSearch();
                                         }
-                                    }
-                                    catch(IOException ioe) {
+                                    } catch (IOException ioe) {
                                         ioe.printStackTrace();
                                         Toast.makeText(SetupActivity.this, "Couldn't read host response", Toast.LENGTH_LONG).show();
                                         hostDialog.show();
@@ -176,7 +171,7 @@ public class SetupActivity extends Activity {
                             runOnUiThread(new Runnable() {
                                 @Override
                                 public void run() {
-                                    if(!hostConnectProgress.isShowing()) {
+                                    if (!hostConnectProgress.isShowing()) {
                                         Log.v("HostConnect", "fail to connect while canceled");
                                         return;
                                     }
@@ -220,8 +215,7 @@ public class SetupActivity extends Activity {
             });
             hostDialog.show();
             hostSearch.startSearch();
-        }
-        else if(multiPlayerHost.isChecked()) {
+        } else if (multiPlayerHost.isChecked()) {
             requestBluetoothDiscoverable();
         }
     }
@@ -270,8 +264,7 @@ public class SetupActivity extends Activity {
                                         try {
                                             player.getOutputStream().write(1);
                                             startGameAsHost(player);
-                                        }
-                                        catch(IOException ioe) {
+                                        } catch (IOException ioe) {
                                             ioe.printStackTrace();
                                             Toast.makeText(SetupActivity.this, "Failed to accept player!", Toast.LENGTH_LONG);
                                             playerListener.beginListening();
@@ -292,42 +285,58 @@ public class SetupActivity extends Activity {
     }
 
     public void onRequestGameStart() {
-        if(singlePlayer.isChecked()) {
-
-        }
-        else if(multiPlayerClient.isChecked() || multiPlayerHost.isChecked()) {
+        if (singlePlayer.isChecked()) {
+            startGameSinglePlayer();
+        } else if (multiPlayerClient.isChecked() || multiPlayerHost.isChecked()) {
             requestBluetoothEnabled();
-        }
-        else {
+        } else {
             Toast.makeText(this, "You must select an option before starting!", Toast.LENGTH_LONG).show();
         }
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if(requestCode == REQUEST_ENABLE_BT) {
-            if(resultCode == RESULT_OK) {
+        if (requestCode == REQUEST_ENABLE_BT) {
+            if (resultCode == RESULT_OK) {
                 onBluetoothEnabled();
-            }
-            else {
+            } else {
                 Toast.makeText(this, "You didn't enable bluetooth! Cannot do multiplayer!", Toast.LENGTH_LONG).show();
             }
-        }
-        else if(requestCode == REQUEST_ENABLE_BT_DISCOVERABLE) {
-            if(resultCode != RESULT_CANCELED) {
+        } else if (requestCode == REQUEST_ENABLE_BT_DISCOVERABLE) {
+            if (resultCode != RESULT_CANCELED) {
                 onBluetoothDiscoverable();
-            }
-            else {
+            } else {
                 Toast.makeText(this, "You didn't enable bluetooth discoverable mode! Cannot do multiplayer hosting!", Toast.LENGTH_LONG).show();
             }
         }
     }
 
+    private Intent getClientIntent() {
+        return new Intent()
+                .setClass(this, PlayActivity.class)
+                .putExtra(PlayActivity.EXTRA_ROLE, false);
+    }
+
+    private Intent getHostIntent() {
+        return new Intent()
+                .setClass(this, PlayActivity.class)
+                .putExtra(PlayActivity.EXTRA_ROLE, true);
+    }
+
+    private void startGameSinglePlayer() {
+        startActivity(new Intent()
+                .setClass(this, PlayActivity.class));
+    }
+
     private void startGameAsClient(BluetoothSocket host) {
+        otherPlayer = host;
         Toast.makeText(this, "Start game as client!", Toast.LENGTH_LONG).show();
+        startActivity(getClientIntent());
     }
 
     private void startGameAsHost(BluetoothSocket client) {
+        otherPlayer = client;
         Toast.makeText(this, "Start game as host!", Toast.LENGTH_LONG).show();
+        startActivity(getHostIntent());
     }
 }
