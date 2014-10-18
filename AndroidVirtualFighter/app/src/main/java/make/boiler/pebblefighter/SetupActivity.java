@@ -148,7 +148,24 @@ public class SetupActivity extends Activity {
                                             ioe.printStackTrace();
                                         }
                                     }
-                                    startGameAsClient(socket);
+                                    hostConnectProgress.dismiss();
+                                    try {
+                                        int response = socket.getInputStream().read();
+                                        if(response == 1) {
+                                            startGameAsClient(socket);
+                                        }
+                                        else {
+                                            Toast.makeText(SetupActivity.this, "Failed due to host rejection", Toast.LENGTH_LONG).show();
+                                            hostDialog.show();
+                                            hostSearch.startSearch();
+                                        }
+                                    }
+                                    catch(IOException ioe) {
+                                        ioe.printStackTrace();
+                                        Toast.makeText(SetupActivity.this, "Couldn't read host response", Toast.LENGTH_LONG).show();
+                                        hostDialog.show();
+                                        hostSearch.startSearch();
+                                    }
                                 }
                             });
 
@@ -237,6 +254,12 @@ public class SetupActivity extends Activity {
 
                                     @Override
                                     public void onClick(DialogInterface dialog, int which) {
+                                        try {
+                                            player.getOutputStream().write(0);
+                                            player.close();
+                                        } catch (IOException ioe) {
+                                            ioe.printStackTrace();
+                                        }
                                         playerListener.beginListening();
                                         searchingProgress.show();
                                     }
@@ -244,8 +267,16 @@ public class SetupActivity extends Activity {
                                 .setPositiveButton("Yes", new AlertDialog.OnClickListener() {
                                     @Override
                                     public void onClick(DialogInterface dialog, int which) {
-                                        Toast.makeText(SetupActivity.this, "accepted player " + player.getRemoteDevice().getName(), Toast.LENGTH_LONG).show();
-                                        startGameAsHost(player);
+                                        try {
+                                            player.getOutputStream().write(1);
+                                            startGameAsHost(player);
+                                        }
+                                        catch(IOException ioe) {
+                                            ioe.printStackTrace();
+                                            Toast.makeText(SetupActivity.this, "Failed to accept player!", Toast.LENGTH_LONG);
+                                            playerListener.beginListening();
+                                            searchingProgress.show();
+                                        }
                                     }
                                 })
                                 .create();
@@ -293,10 +324,10 @@ public class SetupActivity extends Activity {
     }
 
     private void startGameAsClient(BluetoothSocket host) {
-
+        Toast.makeText(this, "Start game as client!", Toast.LENGTH_LONG).show();
     }
 
     private void startGameAsHost(BluetoothSocket client) {
-
+        Toast.makeText(this, "Start game as host!", Toast.LENGTH_LONG).show();
     }
 }
