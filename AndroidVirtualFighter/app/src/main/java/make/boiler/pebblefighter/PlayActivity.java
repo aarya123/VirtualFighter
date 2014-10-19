@@ -18,28 +18,63 @@ import com.getpebble.android.kit.PebbleKit;
 import com.getpebble.android.kit.util.PebbleDictionary;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import make.boiler.pebblefighter.Game.Game;
 import make.boiler.pebblefighter.Game.Move;
+import rx.Observable;
+import rx.Scheduler;
+import rx.Subscriber;
+import rx.Subscription;
+import rx.android.schedulers.AndroidSchedulers;
+import rx.functions.Action0;
+import rx.schedulers.Schedulers;
 
 public class PlayActivity extends Activity {
 
     public static final String EXTRA_ROLE = "role";
     public final static UUID pebbleApp = UUID.fromString("1b4eb327-bb18-4b30-957f-8ab246f3e561");
-    public BluetoothSocket otherPlayer;
     Button startButton;
     View hostHealthBar, clientHealthBar;
     TextView hostAction, clientAction;
     Game game = new Game();
     PebbleKit.PebbleDataReceiver pebbleDataReceiver;
-    boolean isHost = true, mStopHandler = false;
-    ScheduledExecutorService mExecutorService = Executors.newSingleThreadScheduledExecutor();
-    Handler mForegroundHandler;
+    boolean isHost = true;
     int maxHeight = 0;
+    Scheduler.Worker writeCommandWorker = null;
+    Scheduler.Worker gameLoop = null;
+    Subscription gameLoopSubscription = null;
+    InputStream otherPlayerIn = null;
+    OutputStream otherPlayerOs = null;
+
+
+    private Subscription otherPlayerCommandStreamSubscription;
+
+    public Observable<Integer> getOtherPlayerCommandStream() {
+        return Observable.create((Observable.OnSubscribe<Integer>) subscriber -> {
+            try {
+                int nextCommand;
+                Log.v("OtherPlayerCommandStream", "going to read");
+                while((nextCommand = otherPlayerIn.read()) != -1) {
+                    Log.v("OtherPlayerCommandStream", Integer.toString(nextCommand));
+                    subscriber.onNext(nextCommand);
+                }
+                Log.v("OtherPlayerCommandStream", Integer.toString(nextCommand));
+            }
+            catch(IOException ioe) {
+                subscriber.onError(ioe);
+            }
+            subscriber.onCompleted();
+        })
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread());
+    }
 
     //Need a spot to accept and set client command
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,9 +86,38 @@ public class PlayActivity extends Activity {
         clientHealthBar = findViewById(R.id.clientHealthBar);
         hostAction = (TextView) findViewById(R.id.hostAction);
         clientAction = (TextView) findViewById(R.id.clientAction);
-        mForegroundHandler = new Handler(Looper.getMainLooper());
         startButton.setEnabled(isHost);
-        otherPlayer = SetupActivity.otherPlayer;
+        game = new Game();
+        otherPlayerOs = SetupActivity.otherPlayerOut;
+        otherPlayerIn = SetupActivity.otherPlayerIn;
+        otherPlayerCommandStreamSubscription = getOtherPlayerCommandStream().subscribe(new Subscriber<Integer>() {
+            @Override
+            public void onCompleted() {
+                Log.v("onCompleted", "command stream finished");
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                e.printStackTrace();
+                Log.v("onError", "problem reading from command stream!");
+            }
+
+            @Override
+            public void onNext(Integer i) {
+
+
+                if(isHost) {
+                    Move move = Move.values()[i];
+                    Log.d("MoveReceived", move.toString());
+                    game.setClientCommand(move);
+                }
+                else {
+                    PebbleDictionary dict = new PebbleDictionary();
+                    dict.addInt32(0, i);
+                    PebbleKit.sendDataToPebble(PlayActivity.this, PlayActivity.pebbleApp, dict);
+                }
+            }
+        });
         startButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 startGame();
@@ -62,36 +126,20 @@ public class PlayActivity extends Activity {
         });
     }
 
-    public void writeIntToOtherPlayer(final int value) {
-        mExecutorService.execute(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    otherPlayer.getOutputStream().write(value);
-                } catch (IOException e) {
-                    Log.e("PlayActivity", "Error writing move", e);
-                }
+
+    public void writeIntToOtherPlayer(int value) {
+        if(writeCommandWorker == null) {
+            writeCommandWorker = Schedulers.io().createWorker();
+        }
+        writeCommandWorker.schedule(() -> {
+            try {
+                Log.v("WriteCommandWorker", "schedule write " + value);
+                otherPlayerOs.write(value);
+                otherPlayerOs.flush();
             }
-        });
-
-    }
-
-    public interface IntReader {
-        public void onReadInt(int i);
-    }
-
-    public void readIntFromOtherPlayer(final IntReader intReader ) {
-        mExecutorService.execute(new Runnable() {
-            @Override
-            public void run() {
-                int readInt;
-                try {
-                    readInt = otherPlayer.getInputStream().read();
-                } catch (IOException e) {
-                    Log.e("PlayActivity", "Error reading move", e);
-                    readInt = 0;
-                }
-                intReader.onReadInt(readInt);
+            catch(IOException ioe) {
+                ioe.printStackTrace();
+                Log.e("PlayActivity", "error writing command");
             }
         });
     }
@@ -120,62 +168,39 @@ public class PlayActivity extends Activity {
     }
 
     private void startGame() {
-        game = new Game();
-        Runnable runnable = new Runnable() {
-            public void run() {
-                hostAction.setText(game.getHostAction());
-                clientAction.setText(game.getClientAction());
-                game.play(PlayActivity.this);
-                if (maxHeight == 0)
-                    maxHeight = hostHealthBar.getHeight();
-                LinearLayout.LayoutParams temp = (LinearLayout.LayoutParams) hostHealthBar.getLayoutParams();
-                temp.height = (int) (game.getHostHealth() / 100.0 * maxHeight);
+        Log.v("startGame", "called");
+        if(gameLoop == null) {
+            gameLoop = AndroidSchedulers.mainThread().createWorker();
+        }
+        gameLoopSubscription = gameLoop.schedulePeriodically(() -> {
+            hostAction.setText(game.getHostAction());
+            clientAction.setText(game.getClientAction());
+            game.play(PlayActivity.this);
+            if (maxHeight == 0)
+                maxHeight = hostHealthBar.getHeight();
+            LinearLayout.LayoutParams temp = (LinearLayout.LayoutParams) hostHealthBar.getLayoutParams();
+            temp.height = (int) (game.getHostHealth() / 100.0 * maxHeight);
+            hostHealthBar.setLayoutParams(temp);
+            temp = (LinearLayout.LayoutParams) clientHealthBar.getLayoutParams();
+            temp.height = (int) (game.getClientHealth() / 100.0 * maxHeight);
+            clientHealthBar.setLayoutParams(temp);
+            String result = game.isDone();
+            if (result != null) {
+                gameLoopSubscription.unsubscribe();
+                gameLoop.unsubscribe();
+                otherPlayerCommandStreamSubscription.unsubscribe();
+                AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(PlayActivity.this);
+                alertDialogBuilder.setTitle("Game Over!");
+                alertDialogBuilder.setMessage(result + " wins!");
+                AlertDialog alertDialog = alertDialogBuilder.create();
+                alertDialog.show();
+                temp = (LinearLayout.LayoutParams) hostHealthBar.getLayoutParams();
+                temp.height = maxHeight;
                 hostHealthBar.setLayoutParams(temp);
                 temp = (LinearLayout.LayoutParams) clientHealthBar.getLayoutParams();
-                temp.height = (int) (game.getClientHealth() / 100.0 * maxHeight);
+                temp.height = maxHeight;
                 clientHealthBar.setLayoutParams(temp);
-                String result = game.isDone();
-                if (result != null) {
-                    mStopHandler = true;
-                    AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(PlayActivity.this);
-                    alertDialogBuilder.setTitle("Game Over!");
-                    alertDialogBuilder.setMessage(result + " wins!");
-                    AlertDialog alertDialog = alertDialogBuilder.create();
-                    alertDialog.show();
-                    temp = (LinearLayout.LayoutParams) hostHealthBar.getLayoutParams();
-                    temp.height = maxHeight;
-                    hostHealthBar.setLayoutParams(temp);
-                    temp = (LinearLayout.LayoutParams) clientHealthBar.getLayoutParams();
-                    temp.height = maxHeight;
-                    clientHealthBar.setLayoutParams(temp);
-                }
-                if (!mStopHandler) {
-                    mForegroundHandler.postDelayed(this, 500);
-                }
             }
-        };
-        Runnable otherPlayerUpdater = new Runnable() {
-            public void run() {
-                readIntFromOtherPlayer(new IntReader() {
-                    @Override
-                    public void onReadInt(final int i) {
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                Move move = Move.values()[i];
-                                Log.d("MoveReceived", move.toString());
-                                game.setClientCommand(move);
-                                if (!mStopHandler) {
-                                    mForegroundHandler.postDelayed(this, 100);
-                                }
-                            }
-                        });
-                    }
-                });
-
-            }
-        };
-        mForegroundHandler.post(runnable);
-        mForegroundHandler.post(otherPlayerUpdater);
+        }, 0, 500, TimeUnit.MILLISECONDS);
     }
 }

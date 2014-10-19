@@ -21,6 +21,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 import make.boiler.pebblefighter.Game.HostConnecter;
 import make.boiler.pebblefighter.Game.HostSearch;
@@ -36,7 +38,8 @@ public class SetupActivity extends Activity {
     private RadioButton multiPlayerClient;
     private Button start;
 
-    public static BluetoothSocket otherPlayer;
+    public static InputStream otherPlayerIn;
+    public static OutputStream otherPlayerOut;
 
     private static int REQUEST_ENABLE_BT = 1;
     private static int REQUEST_ENABLE_BT_DISCOVERABLE = 2;
@@ -144,10 +147,13 @@ public class SetupActivity extends Activity {
                                         } catch (IOException ioe) {
                                             ioe.printStackTrace();
                                         }
+                                        return;
                                     }
                                     hostConnectProgress.dismiss();
                                     try {
-                                        int response = socket.getInputStream().read();
+                                        otherPlayerIn = socket.getInputStream();
+                                        otherPlayerOut = socket.getOutputStream();
+                                        int response = otherPlayerIn.read();
                                         if (response == 1) {
                                             startGameAsClient(socket);
                                         } else {
@@ -262,7 +268,9 @@ public class SetupActivity extends Activity {
                                     @Override
                                     public void onClick(DialogInterface dialog, int which) {
                                         try {
-                                            player.getOutputStream().write(1);
+                                            otherPlayerIn = player.getInputStream();
+                                            otherPlayerOut = player.getOutputStream();
+                                            otherPlayerOut.write(1);
                                             startGameAsHost(player);
                                         } catch (IOException ioe) {
                                             ioe.printStackTrace();
@@ -329,13 +337,11 @@ public class SetupActivity extends Activity {
     }
 
     private void startGameAsClient(BluetoothSocket host) {
-        otherPlayer = host;
         Toast.makeText(this, "Start game as client!", Toast.LENGTH_LONG).show();
         startActivity(getClientIntent());
     }
 
     private void startGameAsHost(BluetoothSocket client) {
-        otherPlayer = client;
         Toast.makeText(this, "Start game as host!", Toast.LENGTH_LONG).show();
         startActivity(getHostIntent());
     }
