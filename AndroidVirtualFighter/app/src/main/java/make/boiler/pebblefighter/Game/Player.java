@@ -36,14 +36,14 @@ public class Player {
     public void doDamage(Move theirMove, PlayActivity context) {
         if (theirMove == move) {
             if (theirMove == Move.PUNCH) {
-                health -= 5;
+                health -= 6;
             } else if (theirMove == Move.BLOCK) {
-                health -= 1;
+                health -= 2;
             }
         } else if (theirMove == Move.BLOCK) {
-            health -= 1;
-        } else {
             health -= 2;
+        } else {
+            health -= 4;
         }
         health = Math.max(0, health);
     }
