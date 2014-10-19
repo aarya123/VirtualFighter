@@ -142,9 +142,9 @@ void process_tuple(Tuple *t)
     int value = t->value->int32;
     if(value<=0){
         vibes_enqueue_custom_pattern(pat);
-    }else if(prevHealth-value<=2){
+    }else if(prevHealth-value<=4){
         vibes_short_pulse();
-    }else if(prevHealth-value>2){
+    }else if(prevHealth-value>4){
         vibes_double_pulse();
     }
     if(value<=0){
