@@ -1,5 +1,7 @@
 package make.boiler.pebblefighter.Game;
 
+import android.util.Log;
+
 import make.boiler.pebblefighter.PlayActivity;
 
 /**
@@ -24,8 +26,11 @@ public class Game {
     public void play(PlayActivity context) {
         host.doDamage(client.getCommand(), context);
         client.doDamage(host.getCommand(), context);
+        Log.v("Game", "writing " + host.getHealth() + " " + client.getHealth() + " " + host.getCommandInt() + " " + client.getCommandInt());
         context.writeIntToOtherPlayer(host.getHealth());
         context.writeIntToOtherPlayer(client.getHealth());
+        context.writeIntToOtherPlayer(host.getCommandInt());
+        context.writeIntToOtherPlayer(client.getCommandInt());
     }
 
     public int getHostHealth() {
@@ -42,6 +47,14 @@ public class Game {
 
     public void setClientHealth(int i) {
         client.setHealth(i);
+    }
+
+    public void setHostCommandInt(int i) {
+        host.setCommandInt(i);
+    }
+
+    public void setClientCommandInt(int i) {
+        client.setCommandInt(i);
     }
 
     public String getHostAction() {

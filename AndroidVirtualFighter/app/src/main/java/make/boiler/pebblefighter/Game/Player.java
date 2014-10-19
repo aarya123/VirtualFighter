@@ -21,8 +21,16 @@ public class Player {
         return move;
     }
 
+    public int getCommandInt() {
+        return move.ordinal();
+    }
+
     public void setCommand(Move move) {
         this.move = move;
+    }
+
+    public void setCommandInt(int move) {
+        this.move = Move.values()[move];
     }
 
     public void doDamage(Move theirMove, PlayActivity context) {

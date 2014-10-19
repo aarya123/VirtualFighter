@@ -104,7 +104,12 @@ public class PlayActivity extends Activity {
             }
 
             boolean clientStartedGame = false;
-            int clientIsReceivingClientHealth = 1;
+            int clientPlaceInSequence = 1;
+            final int hostHealth = 0;
+            final int clientHealth = 1;
+            final int hostCommand = 2;
+            final int clientCommand = 3;
+            final int sequenceSize = 4;
             @Override
             public void onNext(Integer i) {
 
@@ -125,17 +130,33 @@ public class PlayActivity extends Activity {
                         closeOtherPlayerConnections();
                         finish();
                     }
-                    else if(clientIsReceivingClientHealth == 1) {
-                        PebbleDictionary dict = new PebbleDictionary();
-                        dict.addInt32(0, i);
-                        PebbleKit.sendDataToPebble(PlayActivity.this, PlayActivity.pebbleApp, dict);
-                        game.setClientHealth(i);
-                    }
                     else {
-                        game.setHostHealth(i);
-                    }
-                    clientIsReceivingClientHealth++;
-                    clientIsReceivingClientHealth %= 2;
+                        switch(clientPlaceInSequence) {
+                            case hostHealth:
+                                Log.v("onNext", "hostHealth = " + i);
+                                game.setHostHealth(i);
+                                break;
+                            case clientHealth:
+                                Log.v("onNext", "clientHealth = " + i);
+                                PebbleDictionary dict = new PebbleDictionary();
+                                dict.addInt32(0, i);
+                                PebbleKit.sendDataToPebble(PlayActivity.this, PlayActivity.pebbleApp, dict);
+                                game.setClientHealth(i);
+                                break;
+                            case hostCommand:
+                                Log.v("onNext", "hostCommand = " + i);
+                                game.setHostCommandInt(i);
+                                break;
+                            case clientCommand:
+                                Log.v("onNext", "clientCommand = " + i);
+                                game.setClientCommandInt(i);
+                                break;
+                            default:
+                                throw new RuntimeException("unknown place in client sequence!");
+                            }
+                        }
+                    clientPlaceInSequence++;
+                    clientPlaceInSequence %= sequenceSize;
                 }
             }
         });
@@ -194,9 +215,9 @@ public class PlayActivity extends Activity {
             gameLoop = AndroidSchedulers.mainThread().createWorker();
         }
         gameLoopSubscription = gameLoop.schedulePeriodically(() -> {
+            hostAction.setText(game.getHostAction());
+            clientAction.setText(game.getClientAction());
             if(isHost) {
-                hostAction.setText(game.getHostAction());
-                clientAction.setText(game.getClientAction());
                 game.play(PlayActivity.this);
             }
             if (maxHeight == 0)
