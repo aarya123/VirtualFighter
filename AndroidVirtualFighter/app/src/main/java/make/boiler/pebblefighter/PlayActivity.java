@@ -49,6 +49,7 @@ public class PlayActivity extends Activity {
     String otherPlayerVenmoId;
     String otherPlayerWagerAmount;
     boolean wonGame = false;
+    boolean haltedGame = false;
 
     public static final String VENMO_APP_ACCESS_TOKEN = "mjsbKHjeHVQgC6RHJ9frsPyJqfyufE2k";
     public static final String VENMO_APP_NAME = "Virtual Fighter Wager";
@@ -388,6 +389,10 @@ public class PlayActivity extends Activity {
     }
 
     private void haltGame() {
+        if(haltedGame) {
+            return;
+        }
+        haltedGame = true;
         closeOtherPlayerConnections();
         if(gameLoopSubscription != null) {
             gameLoopSubscription.unsubscribe();
