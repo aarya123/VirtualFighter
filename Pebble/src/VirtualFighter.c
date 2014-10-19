@@ -10,7 +10,6 @@ static Window *window;
 
 TextLayer *healthBar;
 
-TextLayer *accelText;
 char accelTextArr[50];
 
 char maxTextArr[50];
@@ -135,7 +134,6 @@ static void accelSubscriber(AccelRawData *data, uint32_t num_samples, uint64_t t
     // APP_LOG(APP_LOG_LEVEL_INFO,"%s",accelTextArr);
     // APP_LOG(APP_LOG_LEVEL_INFO,"%s",maxTextArr);
     // APP_LOG(APP_LOG_LEVEL_INFO,"%s",minTextArr);
-    text_layer_set_text(accelText, accelTextArr);
 }
 
 void process_tuple(Tuple *t)
@@ -149,7 +147,11 @@ void process_tuple(Tuple *t)
     }else if(prevHealth-value>2){
         vibes_double_pulse();
     }
-    snprintf(healthTextArr, 50, "Health=%d", value);
+    if(value<=0){
+        snprintf(healthTextArr, 50, "You're dead!!!");
+    }else{
+        snprintf(healthTextArr, 50, "Health=%d", value);
+    }
     text_layer_set_text(healthText, healthTextArr);
     text_layer_set_text(healthTextBottom, healthTextArr);
     int prop=maxHeight*value/100;
@@ -170,30 +172,24 @@ static void in_received_handler(DictionaryIterator *iter, void *context)
 
 static void window_load(Window *window) {
     healthText=text_layer_create(GRect(0,0,144,25));
-    accelText = text_layer_create(GRect(0, 25, 144, 25));
     healthTextBottom=text_layer_create(GRect(0,120,144,25));
     GRect rect=layer_get_frame(window_get_root_layer(window));
     maxWidth=rect.size.w;
     maxHeight=rect.size.h;
     healthBar = text_layer_create(rect);
     text_layer_set_background_color(healthBar, GColorBlack);
-    text_layer_set_background_color(accelText, GColorClear);
     text_layer_set_background_color(healthText, GColorClear);
     text_layer_set_background_color(healthTextBottom, GColorClear);
-    text_layer_set_text_color(accelText, GColorBlack);
     text_layer_set_text_color(healthText, GColorBlack);
     text_layer_set_text_color(healthTextBottom, GColorWhite);
-    text_layer_set_text(accelText,"Starting up...");
     text_layer_set_text(healthText,"Starting up...");
     text_layer_set_text(healthTextBottom,"Starting up...");
     layer_add_child(window_get_root_layer(window), (Layer*)healthBar);
-    layer_add_child(window_get_root_layer(window), (Layer*)accelText);
     layer_add_child(window_get_root_layer(window), (Layer*)healthText);
     layer_add_child(window_get_root_layer(window), (Layer*)healthTextBottom); 
 }
 
 static void window_unload(Window *window) {
-    text_layer_destroy(accelText);
     text_layer_destroy(healthText);
     text_layer_destroy(healthTextBottom);
 }

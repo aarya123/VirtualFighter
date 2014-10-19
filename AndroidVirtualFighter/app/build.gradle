@@ -19,7 +19,10 @@ apply plugin: 'retrolambda'
 android {
     compileSdkVersion 19
     buildToolsVersion "20.0.0"
-
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
     defaultConfig {
         applicationId "make.boiler.androidvirtualfighter"
         minSdkVersion 15
