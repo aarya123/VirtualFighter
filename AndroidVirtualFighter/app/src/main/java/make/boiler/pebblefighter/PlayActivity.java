@@ -127,6 +127,9 @@ public class PlayActivity extends Activity {
                         return;
                     }
                     if(i == 120) {
+                        PebbleDictionary dict = new PebbleDictionary();
+                        dict.addInt32(0, -1);
+                        PebbleKit.sendDataToPebble(PlayActivity.this, PlayActivity.pebbleApp, dict);
                         closeOtherPlayerConnections();
                         finish();
                     }
@@ -219,6 +222,9 @@ public class PlayActivity extends Activity {
             clientAction.setText(game.getClientAction());
             if(isHost) {
                 game.play(PlayActivity.this);
+                PebbleDictionary dict = new PebbleDictionary();
+                dict.addInt32(0, game.getHostHealth());
+                PebbleKit.sendDataToPebble(PlayActivity.this, PlayActivity.pebbleApp, dict);
             }
             if (maxHeight == 0)
                 maxHeight = hostHealthBar.getHeight();
