@@ -6,7 +6,6 @@ import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
@@ -18,7 +17,6 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ListView;
-import android.widget.RadioButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -35,30 +33,28 @@ import make.boiler.pebblefighter.Game.PlayerListener;
  */
 public class SetupActivity extends Activity {
 
-    private RadioButton singlePlayer;
-    private RadioButton multiPlayerHost;
-    private RadioButton multiPlayerClient;
-    private Button start;
-
     public static InputStream otherPlayerIn;
     public static OutputStream otherPlayerOut;
-
     private static int REQUEST_ENABLE_BT = 1;
     private static int REQUEST_ENABLE_BT_DISCOVERABLE = 2;
+    boolean isHost;
 
-    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_setup);
-        singlePlayer = (RadioButton) findViewById(R.id.single_player);
-        multiPlayerClient = (RadioButton) findViewById(R.id.multi_player_client);
-        multiPlayerHost = (RadioButton) findViewById(R.id.multi_player_host);
-        start = (Button) findViewById(R.id.start_play);
-        start.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                onRequestGameStart();
-            }
+        Button singlePlayer = (Button) findViewById(R.id.singlePlayer);
+        Button joinMatch = (Button) findViewById(R.id.joinMatch);
+        Button hostMatch = (Button) findViewById(R.id.hostMatch);
+        singlePlayer.setOnClickListener(view -> {
+            startGameSinglePlayer();
+        });
+        joinMatch.setOnClickListener(view -> {
+            isHost = false;
+            requestBluetoothEnabled();
+        });
+        hostMatch.setOnClickListener(view -> {
+            isHost = true;
+            requestBluetoothEnabled();
         });
     }
 
@@ -87,7 +83,7 @@ public class SetupActivity extends Activity {
     }
 
     private void onBluetoothEnabled() {
-        if (multiPlayerClient.isChecked()) {
+        if (!isHost) {
             final HostSearch hostSearch = new HostSearch(this, getBluetoothAdapter());
             final ArrayAdapter<BluetoothDevice> hostAdapter = new ArrayAdapter<BluetoothDevice>(this, android.R.layout.simple_list_item_1) {
                 @Override
@@ -103,15 +99,12 @@ public class SetupActivity extends Activity {
             Button startSearchButton = (Button) layout.findViewById(R.id.scan_for_hosts);
             hostDialog = new AlertDialog.Builder(this)
                     .setTitle("Select Host")
-                    .setOnCancelListener(new DialogInterface.OnCancelListener() {
-                        @Override
-                        public void onCancel(DialogInterface dialog) {
-                            hostSearch.stopSearch();
-                            Toast.makeText(SetupActivity.this, "Aborting host search!", Toast.LENGTH_LONG).show();
-                        }
+                    .setOnCancelListener(dialog -> {
+                        hostSearch.stopSearch();
                     })
                     .setView(layout)
                     .create();
+            startSearchButton.setText("Start Search");
             startSearchButton.setOnClickListener(new View.OnClickListener() {
 
                 boolean startSearch = true;
@@ -129,107 +122,75 @@ public class SetupActivity extends Activity {
                 }
             });
             listView.setAdapter(hostAdapter);
-            listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                @Override
-                public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                    final ProgressDialog hostConnectProgress = new ProgressDialog(SetupActivity.this);
-                    hostConnectProgress.setTitle("Connecting to host");
-                    hostConnectProgress.setIndeterminate(true);
-                    hostConnectProgress.setOnCancelListener(new DialogInterface.OnCancelListener() {
-                        @Override
-                        public void onCancel(DialogInterface dialog) {
-                            Toast.makeText(SetupActivity.this, "Canceling connecting to host!", Toast.LENGTH_LONG).show();
-                        }
-                    });
-                    HostConnecter connecter = new HostConnecter();
-                    connecter.setListener(new HostConnecter.Listener() {
-                        @Override
-                        public void onConnectToHost(final BluetoothSocket socket) {
-                            runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    if (!hostConnectProgress.isShowing()) {
-                                        Log.v("HostConnect", "stopping due to dismiss");
-                                        try {
-                                            socket.close();
-                                        } catch (IOException ioe) {
-                                            ioe.printStackTrace();
-                                        }
-                                        return;
-                                    }
-                                    hostConnectProgress.dismiss();
-                                    try {
-                                        otherPlayerIn = socket.getInputStream();
-                                        otherPlayerOut = socket.getOutputStream();
-                                        int response = otherPlayerIn.read();
-                                        if (response == 1) {
-                                            startGameAsClient(socket);
-                                        } else {
-                                            Toast.makeText(SetupActivity.this, "Failed due to host rejection", Toast.LENGTH_LONG).show();
-                                            hostDialog.show();
-                                            hostSearch.startSearch();
-                                        }
-                                    } catch (IOException ioe) {
-                                        ioe.printStackTrace();
-                                        Toast.makeText(SetupActivity.this, "Couldn't read host response", Toast.LENGTH_LONG).show();
+            listView.setOnItemClickListener((parent, view, position, id) -> {
+                final ProgressDialog hostConnectProgress = new ProgressDialog(SetupActivity.this);
+                hostConnectProgress.setTitle("Connecting to host");
+                hostConnectProgress.setIndeterminate(true);
+                HostConnecter connecter = new HostConnecter();
+                connecter.setListener(new HostConnecter.Listener() {
+                    public void onConnectToHost(final BluetoothSocket socket) {
+                        runOnUiThread(() -> {
+                            if (!hostConnectProgress.isShowing()) {
+                                Log.v("HostConnect", "stopping due to dismiss");
+                                try {
+                                    socket.close();
+                                } catch (IOException ioe) {
+                                    ioe.printStackTrace();
+                                }
+                                return;
+                            }
+                            hostConnectProgress.dismiss();
+                            try {
+                                otherPlayerIn = socket.getInputStream();
+                                otherPlayerOut = socket.getOutputStream();
+                                int response = otherPlayerIn.read();
+                                if (response == 1) {
+                                    startGameAsClient(socket);
+                                } else {
+                                    Toast.makeText(SetupActivity.this, "Failed due to host rejection", Toast.LENGTH_LONG).show();
+                                    hostDialog.show();
+                                }
+                            } catch (IOException ioe) {
+                                ioe.printStackTrace();
+                                Toast.makeText(SetupActivity.this, "Couldn't read host response", Toast.LENGTH_LONG).show();
+                                hostDialog.show();
+                            }
+                        });
+
+                    }
+
+                    @Override
+                    public void onFailConnectToHost(BluetoothDevice device) {
+                        runOnUiThread(() -> {
+                            if (!hostConnectProgress.isShowing()) {
+                                Log.v("HostConnect", "fail to connect while canceled");
+                                return;
+                            }
+                            hostConnectProgress.dismiss();
+                            new AlertDialog.Builder(SetupActivity.this)
+                                    .setTitle("Problem connecting to host")
+                                    .setMessage("Try someone else")
+                                    .setPositiveButton("OK", (dialog, which) -> {
                                         hostDialog.show();
-                                        hostSearch.startSearch();
-                                    }
-                                }
-                            });
-
-                        }
-
-                        @Override
-                        public void onFailConnectToHost(BluetoothDevice device) {
-                            runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    if (!hostConnectProgress.isShowing()) {
-                                        Log.v("HostConnect", "fail to connect while canceled");
-                                        return;
-                                    }
-                                    hostConnectProgress.dismiss();
-                                    new AlertDialog.Builder(SetupActivity.this)
-                                            .setTitle("Problem connecting to host")
-                                            .setMessage("Try someone else")
-                                            .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                                                @Override
-                                                public void onClick(DialogInterface dialog, int which) {
-                                                    hostDialog.show();
-                                                }
-                                            })
-                                            .setOnCancelListener(new DialogInterface.OnCancelListener() {
-                                                @Override
-                                                public void onCancel(DialogInterface dialog) {
-                                                    hostDialog.show();
-                                                }
-                                            })
-                                            .create()
-                                            .show();
-                                }
-                            });
-                        }
-                    });
-                    hostDialog.dismiss();
-                    hostConnectProgress.show();
-                    hostSearch.stopSearch();
-                    connecter.connectToHost(hostAdapter.getItem(position));
-                }
+                                    })
+                                    .setOnCancelListener(dialog -> {
+                                        hostDialog.show();
+                                    })
+                                    .create()
+                                    .show();
+                        });
+                    }
+                });
+                hostDialog.dismiss();
+                hostConnectProgress.show();
+                hostSearch.stopSearch();
+                connecter.connectToHost(hostAdapter.getItem(position));
             });
-            hostSearch.setListener(new HostSearch.Listener() {
-
-                @Override
-                public void onDiscoverHost(BluetoothDevice device) {
-                    hostAdapter.add(device);
-                }
-
-            });
+            hostSearch.setListener(hostAdapter::add);
             for (BluetoothDevice device : getBluetoothAdapter().getBondedDevices()) {
                 hostAdapter.add(device);
-            }
-            hostDialog.show();
-        } else if (multiPlayerHost.isChecked()) {
+            }            hostDialog.show();
+        } else if (isHost) {
             requestBluetoothDiscoverable();
         }
     }
@@ -239,78 +200,49 @@ public class SetupActivity extends Activity {
         final ProgressDialog searchingProgress = new ProgressDialog(this);
         searchingProgress.setIndeterminate(true);
         searchingProgress.setTitle("Waiting for players");
-        searchingProgress.setOnCancelListener(new DialogInterface.OnCancelListener() {
-            @Override
-            public void onCancel(DialogInterface dialog) {
-                playerListener.stopListening();
-                Toast.makeText(SetupActivity.this, "Aborting search for clients!", Toast.LENGTH_LONG).show();
-            }
+        searchingProgress.setOnCancelListener(dialog -> {
+            playerListener.stopListening();
         });
-        playerListener.setListener(new PlayerListener.Listener() {
+        playerListener.setListener(player -> {
+            playerListener.stopListening();
+            runOnUiThread(() -> {
+                searchingProgress.dismiss();
+                final AlertDialog acceptClient = new AlertDialog.Builder(SetupActivity.this)
+                        .setTitle("Found client")
+                        .setMessage(player.getRemoteDevice().getName() + "\n" + player.getRemoteDevice().getAddress())
+                        .setNegativeButton("No", (dialog, which) -> {
+                            try {
+                                player.getOutputStream().write(0);
+                                player.close();
+                            } catch (IOException ioe) {
+                                ioe.printStackTrace();
+                            }
+                            playerListener.beginListening();
+                            searchingProgress.show();
+                        })
+                        .setPositiveButton("Yes", (dialog, which) -> {
+                            try {
+                                otherPlayerIn = player.getInputStream();
+                                otherPlayerOut = player.getOutputStream();
+                                otherPlayerOut.write(1);
+                                startGameAsHost(player);
+                            } catch (IOException ioe) {
+                                ioe.printStackTrace();
+                                Toast.makeText(SetupActivity.this, "Failed to accept player!", Toast.LENGTH_LONG);
+                                playerListener.beginListening();
+                                searchingProgress.show();
+                            }
+                        })
+                        .create();
+                acceptClient.show();
 
-            @Override
-            public void onPlayerConnected(final BluetoothSocket player) {
-                playerListener.stopListening();
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        searchingProgress.dismiss();
-                        final AlertDialog acceptClient = new AlertDialog.Builder(SetupActivity.this)
-                                .setTitle("Found client")
-                                .setMessage(player.getRemoteDevice().getName() + "\n" + player.getRemoteDevice().getAddress())
-                                .setNegativeButton("No", new AlertDialog.OnClickListener() {
-
-                                    @Override
-                                    public void onClick(DialogInterface dialog, int which) {
-                                        try {
-                                            player.getOutputStream().write(0);
-                                            player.close();
-                                        } catch (IOException ioe) {
-                                            ioe.printStackTrace();
-                                        }
-                                        playerListener.beginListening();
-                                        searchingProgress.show();
-                                    }
-                                })
-                                .setPositiveButton("Yes", new AlertDialog.OnClickListener() {
-                                    @Override
-                                    public void onClick(DialogInterface dialog, int which) {
-                                        try {
-                                            otherPlayerIn = player.getInputStream();
-                                            otherPlayerOut = player.getOutputStream();
-                                            otherPlayerOut.write(1);
-                                            startGameAsHost(player);
-                                        } catch (IOException ioe) {
-                                            ioe.printStackTrace();
-                                            Toast.makeText(SetupActivity.this, "Failed to accept player!", Toast.LENGTH_LONG);
-                                            playerListener.beginListening();
-                                            searchingProgress.show();
-                                        }
-                                    }
-                                })
-                                .create();
-                        acceptClient.show();
-
-                    }
-                });
-            }
+            });
         });
         playerListener.beginListening();
         searchingProgress.show();
 
     }
 
-    public void onRequestGameStart() {
-        if (singlePlayer.isChecked()) {
-            startGameSinglePlayer();
-        } else if (multiPlayerClient.isChecked() || multiPlayerHost.isChecked()) {
-            requestBluetoothEnabled();
-        } else {
-            Toast.makeText(this, "You must select an option before starting!", Toast.LENGTH_LONG).show();
-        }
-    }
-
-    @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == REQUEST_ENABLE_BT) {
             if (resultCode == RESULT_OK) {
@@ -345,12 +277,10 @@ public class SetupActivity extends Activity {
     }
 
     private void startGameAsClient(BluetoothSocket host) {
-        Toast.makeText(this, "Start game as client!", Toast.LENGTH_LONG).show();
         startActivity(getClientIntent());
     }
 
     private void startGameAsHost(BluetoothSocket client) {
-        Toast.makeText(this, "Start game as host!", Toast.LENGTH_LONG).show();
         startActivity(getHostIntent());
     }
 }

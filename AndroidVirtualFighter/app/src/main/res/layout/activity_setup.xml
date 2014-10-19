@@ -1,20 +1,77 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent">
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
 
-    <RadioGroup
+    <View
+        android:id="@+id/blueBlock"
+        android:layout_width="fill_parent"
+        android:layout_height="200dp"
+        android:background="#2ecc71" />
+
+    <View
+        android:layout_width="fill_parent"
+        android:layout_height="5dp"
+        android:layout_below="@id/blueBlock"
+        android:background="#27ae60" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_marginRight="10dp"
+        android:layout_marginTop="75dp"
+        android:text="Virtual Fighter"
+        android:textColor="#ecf0f1"
+        android:textSize="20pt" />
+
+    <Button
+        android:id="@+id/singlePlayer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:background="@drawable/button_blue"
+        android:text="Single Player Mode"
+        android:textColor="#ecf0f1" />
+
+    <Button
+        android:id="@+id/hostMatch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@id/singlePlayer"
+        android:layout_marginLeft="50dp"
+        android:layout_marginTop="50dp"
+        android:background="@drawable/button_blue"
+        android:text="Host A Match"
+        android:textColor="#ecf0f1" />
+
+    <Button
+        android:id="@+id/joinMatch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_below="@id/singlePlayer"
+        android:layout_marginRight="50dp"
+        android:layout_marginTop="50dp"
+        android:background="@drawable/button_blue"
+        android:text="Join A Match"
+        android:textColor="#ecf0f1" />
+
+    <!--<RadioGroup
         android:id="@+id/play_options"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:layout_alignParentTop="true"
         android:layout_alignParentLeft="true">
+
         <RadioButton
             android:id="@+id/single_player"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/single_player_desc"/>
+            android:text="@string/single_player_desc" />
 
         <RadioButton
             android:text="@string/multi_player_host_desc"
@@ -27,7 +84,7 @@
             android:id="@+id/multi_player_client"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content" />
-        </RadioGroup>
+    </RadioGroup>
 
     <Button
         android:id="@+id/start_play"
@@ -35,6 +92,6 @@
         android:layout_below="@id/play_options"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/start_play"/>
+        android:text="@string/start_play" />-->
 
 </RelativeLayout>
