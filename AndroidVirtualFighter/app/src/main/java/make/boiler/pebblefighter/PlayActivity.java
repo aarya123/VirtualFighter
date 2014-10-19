@@ -126,12 +126,32 @@ public class PlayActivity extends Activity {
                         startGame();
                         return;
                     }
-                    if(i == 120) {
-                        PebbleDictionary dict = new PebbleDictionary();
-                        dict.addInt32(0, -1);
-                        PebbleKit.sendDataToPebble(PlayActivity.this, PlayActivity.pebbleApp, dict);
+                    if(i == 120 || i == 121 || i == 122) {
+                        String message;
+                        if(i == 120) {
+                            PebbleDictionary dict = new PebbleDictionary();
+                            dict.addInt32(0, -1);
+                            PebbleKit.sendDataToPebble(PlayActivity.this, PlayActivity.pebbleApp, dict);
+                            message = "You Lose!";
+                        }
+                        else if(i == 121) {
+                            message = "You Win!";
+                        }
+                        else {
+                            message = "Tie!";
+                        }
                         closeOtherPlayerConnections();
-                        finish();
+                        AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(PlayActivity.this);
+                        alertDialogBuilder.setTitle("Game Over!");
+                        alertDialogBuilder.setMessage(message);
+                        AlertDialog alertDialog = alertDialogBuilder.create();
+                        alertDialog.show();
+                        alertDialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
+                            @Override
+                            public void onCancel(DialogInterface dialog) {
+                                finish();
+                            }
+                        });
                     }
                     else {
                         switch(clientPlaceInSequence) {
@@ -242,7 +262,23 @@ public class PlayActivity extends Activity {
                     otherPlayerCommandStreamSubscription.unsubscribe();
                     AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(PlayActivity.this);
                     alertDialogBuilder.setTitle("Game Over!");
-                    alertDialogBuilder.setMessage(result + " wins!");
+                    String message;
+                    if(isHost && result.equals("Host")) {
+                        message = "You win!";
+                    }
+                    else if(isHost && result.equals("Client")) {
+                        message = "You lose!";
+                    }
+                    else if(!isHost && result.equals("Host")) {
+                        message = "You lose!";
+                    }
+                    else if(!isHost && result.equals("Client")) {
+                        message = "You win!";
+                    }
+                    else {
+                        message = "Tie!";
+                    }
+                    alertDialogBuilder.setMessage(message);
                     AlertDialog alertDialog = alertDialogBuilder.create();
                     alertDialog.show();
                     alertDialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
@@ -251,14 +287,16 @@ public class PlayActivity extends Activity {
                             finish();
                         }
                     });
-                    temp = (LinearLayout.LayoutParams) hostHealthBar.getLayoutParams();
-                    temp.height = maxHeight;
-                    hostHealthBar.setLayoutParams(temp);
-                    temp = (LinearLayout.LayoutParams) clientHealthBar.getLayoutParams();
-                    temp.height = maxHeight;
-                    clientHealthBar.setLayoutParams(temp);
                     try {
-                        otherPlayerOs.write(120);
+                        if(result.equals("Host")) {
+                            otherPlayerOs.write(120);
+                        }
+                        else if(result.equals("Client")) {
+                            otherPlayerOs.write(121);
+                        }
+                        else {
+                            otherPlayerOs.write(122);
+                        }
                         otherPlayerOs.flush();
                     }
                     catch(IOException ioe) {
@@ -275,17 +313,19 @@ public class PlayActivity extends Activity {
     }
 
     private void closeOtherPlayerConnections() {
-        try {
-            otherPlayerOs.close();
+        if(otherPlayerOs != null) {
+            try {
+                otherPlayerOs.close();
+            } catch (IOException ioe) {
+                ioe.printStackTrace();
+            }
         }
-        catch(IOException ioe) {
-            ioe.printStackTrace();
-        }
-        try {
-            otherPlayerIn.close();
-        }
-        catch(IOException ioe) {
-            ioe.printStackTrace();
+        if(otherPlayerIn != null) {
+            try {
+                otherPlayerIn.close();
+            } catch (IOException ioe) {
+                ioe.printStackTrace();
+            }
         }
     }
 }
