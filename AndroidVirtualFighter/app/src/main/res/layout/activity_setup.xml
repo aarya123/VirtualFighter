@@ -29,7 +29,9 @@
         android:id="@+id/singlePlayer"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
+        android:layout_below="@id/blueBlock"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="25dp"
         android:background="@drawable/button_blue"
         android:text="Single Player Mode"
         android:textColor="#ecf0f1" />
@@ -40,7 +42,7 @@
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
         android:layout_below="@id/singlePlayer"
-        android:layout_marginTop="50dp"
+        android:layout_marginTop="25dp"
         android:background="@drawable/button_blue"
         android:text="Join A Match"
         android:textColor="#ecf0f1" />
@@ -50,11 +52,21 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
-        android:layout_marginTop="50dp"
+        android:layout_marginTop="25dp"
         android:layout_below="@id/joinMatch"
         android:background="@drawable/button_blue"
         android:text="Host A Match"
         android:textColor="#ecf0f1" />
 
+    <Button
+        android:id="@+id/wagerMode"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="25dp"
+        android:layout_below="@id/hostMatch"
+        android:background="@drawable/button_blue"
+        android:text="Enable Wager Mode"
+        android:textColor="#ecf0f1" />
 
 </RelativeLayout>

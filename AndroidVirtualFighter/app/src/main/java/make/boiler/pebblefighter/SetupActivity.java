@@ -6,6 +6,7 @@ import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -15,6 +16,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -34,9 +36,12 @@ public class SetupActivity extends Activity {
 
     public static InputStream otherPlayerIn;
     public static OutputStream otherPlayerOut;
-    private static int REQUEST_ENABLE_BT = 1;
-    private static int REQUEST_ENABLE_BT_DISCOVERABLE = 2;
+    private static int REQUEST_ENABLE_BT = 901;
+    private static int REQUEST_ENABLE_BT_DISCOVERABLE = 900;
+
     boolean isHost;
+    public static String myVenmoId = null;
+    public static String myWagerAmount = null;
 
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -44,6 +49,8 @@ public class SetupActivity extends Activity {
         Button singlePlayer = (Button) findViewById(R.id.singlePlayer);
         Button joinMatch = (Button) findViewById(R.id.joinMatch);
         Button hostMatch = (Button) findViewById(R.id.hostMatch);
+        Button wagerMode = (Button) findViewById(R.id.wagerMode);
+
         singlePlayer.setOnClickListener(view -> {
             startGameSinglePlayer();
         });
@@ -54,6 +61,18 @@ public class SetupActivity extends Activity {
         hostMatch.setOnClickListener(view -> {
             isHost = true;
             requestBluetoothEnabled();
+        });
+        wagerMode.setText("Enable Wager Mode");
+        wagerMode.setOnClickListener(view -> {
+            if(myVenmoId == null) {
+                enableWagerMode();
+                wagerMode.setText("Disable Wager Mode");
+            }
+            else {
+                wagerMode.setText("Enable Wager Mode");
+                myVenmoId = null;
+                myWagerAmount = null;
+            }
         });
     }
 
@@ -305,5 +324,24 @@ public class SetupActivity extends Activity {
 
     private void startGameAsHost(BluetoothSocket client) {
         startActivity(getHostIntent());
+    }
+
+    private void enableWagerMode() {
+        View content = LayoutInflater.from(this).inflate(R.layout.diag_wager, null);
+        EditText venmoIdField = (EditText) content.findViewById(R.id.venmo_id_field);
+        EditText amountField = (EditText) content.findViewById(R.id.venmo_wager_field);
+        new AlertDialog.Builder(this)
+                .setTitle("Wager Info")
+                .setView(content)
+                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        myVenmoId = venmoIdField.getText().toString();
+                        myWagerAmount = amountField.getText().toString();
+                    }
+                })
+                .create()
+                .show();
+
     }
 }

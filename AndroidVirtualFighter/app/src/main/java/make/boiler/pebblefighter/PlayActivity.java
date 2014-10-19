@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -45,6 +46,13 @@ public class PlayActivity extends Activity {
     Subscription gameLoopSubscription = null;
     InputStream otherPlayerIn = null;
     OutputStream otherPlayerOs = null;
+    String otherPlayerVenmoId;
+    String otherPlayerWagerAmount;
+    boolean wonGame = false;
+
+    public static final String VENMO_APP_ACCESS_TOKEN = "mjsbKHjeHVQgC6RHJ9frsPyJqfyufE2k";
+    public static final String VENMO_APP_NAME = "Virtual Fighter Wager";
+    public static final String VENMO_APP_ID = "2044";
 
     private Subscription otherPlayerCommandStreamSubscription;
 
@@ -82,6 +90,25 @@ public class PlayActivity extends Activity {
         game = new Game();
         otherPlayerOs = SetupActivity.otherPlayerOut;
         otherPlayerIn = SetupActivity.otherPlayerIn;
+        otherPlayerVenmoId = null;
+
+        if(SetupActivity.myVenmoId != null) {
+            try {
+                otherPlayerOs.write(123);
+                for(int i = 0; i < SetupActivity.myVenmoId.length(); i++) {
+                    otherPlayerOs.write((int)SetupActivity.myVenmoId.charAt(i));
+                }
+                otherPlayerOs.write(0);
+                for(int i = 0; i < SetupActivity.myWagerAmount.length(); i++) {
+                    otherPlayerOs.write((int)SetupActivity.myWagerAmount.charAt(i));
+                }
+                otherPlayerOs.write(0);
+            }
+            catch(IOException ioe) {
+                ioe.printStackTrace();
+                Log.e("PlayActivity", "can't activate wager mode!");
+            }
+        }
         otherPlayerCommandStreamSubscription = getOtherPlayerCommandStream().subscribe(new Subscriber<Integer>() {
             @Override
             public void onCompleted() {
@@ -98,7 +125,11 @@ public class PlayActivity extends Activity {
             }
 
             boolean clientStartedGame = false;
-            int clientPlaceInSequence = 1;
+            boolean listeningForWagerMode = true;
+            int wagerModeState = 0;
+            final int wagerModeStateVenmoId = 0;
+            final int wagerModeStateAmount = 1;
+            int clientPlaceInSequence = 0;
             final int hostHealth = 0;
             final int clientHealth = 1;
             final int hostCommand = 2;
@@ -107,7 +138,36 @@ public class PlayActivity extends Activity {
             @Override
             public void onNext(Integer i) {
 
-
+                if(i == 123) {
+                    listeningForWagerMode = true;
+                    return;
+                }
+                if(listeningForWagerMode) {
+                    switch(wagerModeState) {
+                        case wagerModeStateVenmoId:
+                            if(otherPlayerVenmoId == null) {
+                                otherPlayerVenmoId = "";
+                            }
+                            if(i != 0) {
+                                otherPlayerVenmoId += (char)i.intValue();
+                            }
+                            else {
+                                wagerModeState = wagerModeStateAmount;
+                            }
+                            return;
+                        case wagerModeStateAmount:
+                            if(otherPlayerWagerAmount == null) {
+                                otherPlayerWagerAmount = "";
+                            }
+                            if(i != 0) {
+                                otherPlayerWagerAmount += (char)i.intValue();
+                            }
+                            else {
+                                listeningForWagerMode = false;
+                            }
+                            return;
+                    }
+                }
 
                 if(isHost) {
                     Move move = Move.values()[i];
@@ -118,8 +178,8 @@ public class PlayActivity extends Activity {
                     if(!clientStartedGame) {
                         clientStartedGame = true;
                         startGame();
-                        return;
                     }
+
                     if(i == 120 || i == 121 || i == 122) {
                         String message;
                         if(i == 120) {
@@ -130,11 +190,11 @@ public class PlayActivity extends Activity {
                         }
                         else if(i == 121) {
                             message = "You Win!";
+                            wonGame = true;
                         }
                         else {
                             message = "Tie!";
                         }
-                        closeOtherPlayerConnections();
                         AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(PlayActivity.this);
                         alertDialogBuilder.setTitle("Game Over!");
                         alertDialogBuilder.setMessage(message);
@@ -146,6 +206,7 @@ public class PlayActivity extends Activity {
                                 haltGame();
                             }
                         });
+                        return;
                     }
                     else {
                         switch(clientPlaceInSequence) {
@@ -263,6 +324,7 @@ public class PlayActivity extends Activity {
                     String message;
                     if(isHost && result.equals("Host")) {
                         message = "You win!";
+                        wonGame = true;
                     }
                     else if(isHost && result.equals("Client")) {
                         message = "You lose!";
@@ -272,6 +334,7 @@ public class PlayActivity extends Activity {
                     }
                     else if(!isHost && result.equals("Client")) {
                         message = "You win!";
+                        wonGame = true;
                     }
                     else {
                         message = "Tie!";
@@ -300,9 +363,6 @@ public class PlayActivity extends Activity {
                     catch(IOException ioe) {
                         Log.e("PlayActivity", "couldn't finish match for client!");
                         ioe.printStackTrace();
-                    }
-                    finally {
-                        closeOtherPlayerConnections();
                     }
                 }
             }
@@ -337,6 +397,21 @@ public class PlayActivity extends Activity {
         }
         if(writeCommandWorker != null) {
             writeCommandWorker.unsubscribe();
+        }
+        if(wonGame && otherPlayerVenmoId != null && !otherPlayerVenmoId.isEmpty() && otherPlayerWagerAmount != null && !otherPlayerWagerAmount.isEmpty()) {
+            try {
+                Intent venmoIntent = VenmoLibrary.openVenmoPayment(VENMO_APP_ID, VENMO_APP_NAME, otherPlayerVenmoId, otherPlayerWagerAmount,
+                        "I beat you at Virtual Fighter :)", "charge");
+                startActivity(venmoIntent);
+            }
+            catch (android.content.ActivityNotFoundException e)
+            {
+                Intent venmoIntent = new Intent(this, VenmoWebViewActivity.class);
+                String venmo_uri = VenmoLibrary.openVenmoPaymentInWebView(VENMO_APP_ID, VENMO_APP_NAME, otherPlayerVenmoId, otherPlayerWagerAmount,
+                        "I beat you at Virtual Fighter :)", "charge");
+                venmoIntent.putExtra("url", venmo_uri);
+                startActivity(venmoIntent);
+            }
         }
         finish();
     }

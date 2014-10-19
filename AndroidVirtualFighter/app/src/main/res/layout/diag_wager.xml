@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <TextView
+        android:layout_width="100dp"
+        android:layout_height="40dp"
+        android:text="Venmo ID"
+        android:id="@+id/venmo_id_label"
+        android:gravity="center"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentTop="true"/>
+
+    <EditText
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_toRightOf="@id/venmo_id_label"
+        android:layout_alignParentTop="true"
+        android:id="@+id/venmo_id_field"/>
+
+    <TextView
+        android:layout_width="100dp"
+        android:layout_height="40dp"
+        android:gravity="center"
+        android:text="Amount"
+        android:id="@+id/venmo_wager_label"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@id/venmo_id_field"/>
+
+    <EditText
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_toRightOf="@id/venmo_wager_label"
+        android:inputType="numberDecimal"
+        android:id="@+id/venmo_wager_field"
+        android:layout_below="@id/venmo_id_field"/>
+
+
+</RelativeLayout>
