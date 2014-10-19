@@ -148,7 +148,7 @@ void process_tuple(Tuple *t)
         vibes_double_pulse();
     }
     if(value<=0){
-        snprintf(healthTextArr, 50, "You lose!!!");
+        snprintf(healthTextArr, 50, "You're dead!!!");
     }else{
         snprintf(healthTextArr, 50, "Health=%d", value);
     }
