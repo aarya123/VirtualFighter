@@ -7,6 +7,7 @@ import android.content.Context;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Looper;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -18,6 +19,9 @@ import com.getpebble.android.kit.util.PebbleDictionary;
 
 import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import make.boiler.pebblefighter.Game.Game;
 import make.boiler.pebblefighter.Game.Move;
@@ -33,12 +37,8 @@ public class PlayActivity extends Activity {
     Game game = new Game();
     PebbleKit.PebbleDataReceiver pebbleDataReceiver;
     boolean isHost = true, mStopHandler = false;
-    Handler mBackgroundHandler, mForegroundHandler;
-    HandlerThread mHandlerThread = new HandlerThread("Fondler") {
-        protected void onLooperPrepared() {
-            mBackgroundHandler = new Handler(getLooper());
-        }
-    };
+    ScheduledExecutorService mExecutorService = Executors.newSingleThreadScheduledExecutor();
+    Handler mForegroundHandler;
     int maxHeight = 0;
 
     //Need a spot to accept and set client command
@@ -51,76 +51,49 @@ public class PlayActivity extends Activity {
         clientHealthBar = findViewById(R.id.clientHealthBar);
         hostAction = (TextView) findViewById(R.id.hostAction);
         clientAction = (TextView) findViewById(R.id.clientAction);
-        mHandlerThread.start();
+        mForegroundHandler = new Handler(Looper.getMainLooper());
         startButton.setEnabled(isHost);
         otherPlayer = SetupActivity.otherPlayer;
         startButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
-                game = new Game();
-                Runnable runnable = new Runnable() {
-                    public void run() {
-                        hostAction.setText(game.getHostAction());
-                        clientAction.setText(game.getClientAction());
-                        game.play(PlayActivity.this);
-                        if (maxHeight == 0)
-                            maxHeight = hostHealthBar.getHeight();
-                        LinearLayout.LayoutParams temp = (LinearLayout.LayoutParams) hostHealthBar.getLayoutParams();
-                        temp.height = (int) (game.getHostHealth() / 100.0 * maxHeight);
-                        hostHealthBar.setLayoutParams(temp);
-                        temp = (LinearLayout.LayoutParams) clientHealthBar.getLayoutParams();
-                        temp.height = (int) (game.getClientHealth() / 100.0 * maxHeight);
-                        clientHealthBar.setLayoutParams(temp);
-                        String result = game.isDone();
-                        if (result != null) {
-                            mStopHandler = true;
-                            AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(PlayActivity.this);
-                            alertDialogBuilder.setTitle("Game Over!");
-                            alertDialogBuilder.setMessage(result + " wins!");
-                            AlertDialog alertDialog = alertDialogBuilder.create();
-                            alertDialog.show();
-                            temp = (LinearLayout.LayoutParams) hostHealthBar.getLayoutParams();
-                            temp.height = maxHeight;
-                            hostHealthBar.setLayoutParams(temp);
-                            temp = (LinearLayout.LayoutParams) clientHealthBar.getLayoutParams();
-                            temp.height = maxHeight;
-                            clientHealthBar.setLayoutParams(temp);
-                        }
-                        if (!mStopHandler) {
-                            mBackgroundHandler.postDelayed(this, 500);
-                        }
-                    }
-                };
-                Runnable otherPlayerUpdater = new Runnable() {
-                    public void run() {
-                        Move move = Move.values()[readIntFromOtherPlayer()];
-                        Log.d("MoveReceived", move.toString());
-                        game.setClientCommand(move);
-                        if (!mStopHandler) {
-                            mBackgroundHandler.postDelayed(this, 100);
-                        }
-                    }
-                };
-                mBackgroundHandler.post(runnable);
-                mBackgroundHandler.post(otherPlayerUpdater);
+                startGame();
+                startButton.setEnabled(false);
             }
         });
     }
 
-    public void writeIntToOtherPlayer(int value) {
-        try {
-            otherPlayer.getOutputStream().write(value);
-        } catch (IOException e) {
-            Log.e("PlayActivity", "Error writing move", e);
-        }
+    public void writeIntToOtherPlayer(final int value) {
+        mExecutorService.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    otherPlayer.getOutputStream().write(value);
+                } catch (IOException e) {
+                    Log.e("PlayActivity", "Error writing move", e);
+                }
+            }
+        });
+
     }
 
-    public int readIntFromOtherPlayer() {
-        try {
-            return otherPlayer.getInputStream().read();
-        } catch (IOException e) {
-            Log.e("PlayActivity", "Error reading move", e);
-        }
-        return 0;
+    public interface IntReader {
+        public void onReadInt(int i);
+    }
+
+    public void readIntFromOtherPlayer(final IntReader intReader ) {
+        mExecutorService.execute(new Runnable() {
+            @Override
+            public void run() {
+                int readInt;
+                try {
+                    readInt = otherPlayer.getInputStream().read();
+                } catch (IOException e) {
+                    Log.e("PlayActivity", "Error reading move", e);
+                    readInt = 0;
+                }
+                intReader.onReadInt(readInt);
+            }
+        });
     }
 
     protected void onResume() {
@@ -144,5 +117,65 @@ public class PlayActivity extends Activity {
     protected void onPause() {
         super.onPause();
         unregisterReceiver(pebbleDataReceiver);
+    }
+
+    private void startGame() {
+        game = new Game();
+        Runnable runnable = new Runnable() {
+            public void run() {
+                hostAction.setText(game.getHostAction());
+                clientAction.setText(game.getClientAction());
+                game.play(PlayActivity.this);
+                if (maxHeight == 0)
+                    maxHeight = hostHealthBar.getHeight();
+                LinearLayout.LayoutParams temp = (LinearLayout.LayoutParams) hostHealthBar.getLayoutParams();
+                temp.height = (int) (game.getHostHealth() / 100.0 * maxHeight);
+                hostHealthBar.setLayoutParams(temp);
+                temp = (LinearLayout.LayoutParams) clientHealthBar.getLayoutParams();
+                temp.height = (int) (game.getClientHealth() / 100.0 * maxHeight);
+                clientHealthBar.setLayoutParams(temp);
+                String result = game.isDone();
+                if (result != null) {
+                    mStopHandler = true;
+                    AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(PlayActivity.this);
+                    alertDialogBuilder.setTitle("Game Over!");
+                    alertDialogBuilder.setMessage(result + " wins!");
+                    AlertDialog alertDialog = alertDialogBuilder.create();
+                    alertDialog.show();
+                    temp = (LinearLayout.LayoutParams) hostHealthBar.getLayoutParams();
+                    temp.height = maxHeight;
+                    hostHealthBar.setLayoutParams(temp);
+                    temp = (LinearLayout.LayoutParams) clientHealthBar.getLayoutParams();
+                    temp.height = maxHeight;
+                    clientHealthBar.setLayoutParams(temp);
+                }
+                if (!mStopHandler) {
+                    mForegroundHandler.postDelayed(this, 500);
+                }
+            }
+        };
+        Runnable otherPlayerUpdater = new Runnable() {
+            public void run() {
+                readIntFromOtherPlayer(new IntReader() {
+                    @Override
+                    public void onReadInt(final int i) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Move move = Move.values()[i];
+                                Log.d("MoveReceived", move.toString());
+                                game.setClientCommand(move);
+                                if (!mStopHandler) {
+                                    mForegroundHandler.postDelayed(this, 100);
+                                }
+                            }
+                        });
+                    }
+                });
+
+            }
+        };
+        mForegroundHandler.post(runnable);
+        mForegroundHandler.post(otherPlayerUpdater);
     }
 }
