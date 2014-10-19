@@ -37,17 +37,10 @@ public class Player {
         } else {
             health -= 2;
         }
-        sendNewHealth(context);
     }
 
-    private void sendNewHealth(PlayActivity context) {
-        if (host) {
-            PebbleDictionary dict = new PebbleDictionary();
-            dict.addInt32(0, health);
-            PebbleKit.sendDataToPebble(context, PlayActivity.pebbleApp, dict);
-        } else {
-            context.writeIntToOtherPlayer(health);
-        }
+    public void setHealth(int i) {
+        health = i;
     }
 
     public int getHealth() {

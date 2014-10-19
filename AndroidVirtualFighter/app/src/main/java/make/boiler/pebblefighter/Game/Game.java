@@ -24,6 +24,8 @@ public class Game {
     public void play(PlayActivity context) {
         host.doDamage(client.getCommand(), context);
         client.doDamage(host.getCommand(), context);
+        context.writeIntToOtherPlayer(host.getHealth());
+        context.writeIntToOtherPlayer(client.getHealth());
     }
 
     public int getHostHealth() {
@@ -32,6 +34,14 @@ public class Game {
 
     public int getClientHealth() {
         return client.getHealth();
+    }
+
+    public void setHostHealth(int i) {
+        host.setHealth(i);
+    }
+
+    public void setClientHealth(int i) {
+        client.setHealth(i);
     }
 
     public String getHostAction() {

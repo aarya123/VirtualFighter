@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -102,8 +103,11 @@ public class PlayActivity extends Activity {
                 Log.v("onError", "problem reading from command stream!");
             }
 
+            boolean clientStartedGame = false;
+            int clientIsReceivingClientHealth = 1;
             @Override
             public void onNext(Integer i) {
+
 
 
                 if(isHost) {
@@ -112,9 +116,26 @@ public class PlayActivity extends Activity {
                     game.setClientCommand(move);
                 }
                 else {
-                    PebbleDictionary dict = new PebbleDictionary();
-                    dict.addInt32(0, i);
-                    PebbleKit.sendDataToPebble(PlayActivity.this, PlayActivity.pebbleApp, dict);
+                    if(!clientStartedGame) {
+                        clientStartedGame = true;
+                        startGame();
+                        return;
+                    }
+                    if(i == 120) {
+                        closeOtherPlayerConnections();
+                        finish();
+                    }
+                    else if(clientIsReceivingClientHealth == 1) {
+                        PebbleDictionary dict = new PebbleDictionary();
+                        dict.addInt32(0, i);
+                        PebbleKit.sendDataToPebble(PlayActivity.this, PlayActivity.pebbleApp, dict);
+                        game.setClientHealth(i);
+                    }
+                    else {
+                        game.setHostHealth(i);
+                    }
+                    clientIsReceivingClientHealth++;
+                    clientIsReceivingClientHealth %= 2;
                 }
             }
         });
@@ -173,9 +194,11 @@ public class PlayActivity extends Activity {
             gameLoop = AndroidSchedulers.mainThread().createWorker();
         }
         gameLoopSubscription = gameLoop.schedulePeriodically(() -> {
-            hostAction.setText(game.getHostAction());
-            clientAction.setText(game.getClientAction());
-            game.play(PlayActivity.this);
+            if(isHost) {
+                hostAction.setText(game.getHostAction());
+                clientAction.setText(game.getClientAction());
+                game.play(PlayActivity.this);
+            }
             if (maxHeight == 0)
                 maxHeight = hostHealthBar.getHeight();
             LinearLayout.LayoutParams temp = (LinearLayout.LayoutParams) hostHealthBar.getLayoutParams();
@@ -184,23 +207,58 @@ public class PlayActivity extends Activity {
             temp = (LinearLayout.LayoutParams) clientHealthBar.getLayoutParams();
             temp.height = (int) (game.getClientHealth() / 100.0 * maxHeight);
             clientHealthBar.setLayoutParams(temp);
-            String result = game.isDone();
-            if (result != null) {
-                gameLoopSubscription.unsubscribe();
-                gameLoop.unsubscribe();
-                otherPlayerCommandStreamSubscription.unsubscribe();
-                AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(PlayActivity.this);
-                alertDialogBuilder.setTitle("Game Over!");
-                alertDialogBuilder.setMessage(result + " wins!");
-                AlertDialog alertDialog = alertDialogBuilder.create();
-                alertDialog.show();
-                temp = (LinearLayout.LayoutParams) hostHealthBar.getLayoutParams();
-                temp.height = maxHeight;
-                hostHealthBar.setLayoutParams(temp);
-                temp = (LinearLayout.LayoutParams) clientHealthBar.getLayoutParams();
-                temp.height = maxHeight;
-                clientHealthBar.setLayoutParams(temp);
+            if(isHost) {
+                String result = game.isDone();
+                if (result != null) {
+                    gameLoopSubscription.unsubscribe();
+                    gameLoop.unsubscribe();
+                    otherPlayerCommandStreamSubscription.unsubscribe();
+                    AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(PlayActivity.this);
+                    alertDialogBuilder.setTitle("Game Over!");
+                    alertDialogBuilder.setMessage(result + " wins!");
+                    AlertDialog alertDialog = alertDialogBuilder.create();
+                    alertDialog.show();
+                    alertDialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
+                        @Override
+                        public void onCancel(DialogInterface dialog) {
+                            finish();
+                        }
+                    });
+                    temp = (LinearLayout.LayoutParams) hostHealthBar.getLayoutParams();
+                    temp.height = maxHeight;
+                    hostHealthBar.setLayoutParams(temp);
+                    temp = (LinearLayout.LayoutParams) clientHealthBar.getLayoutParams();
+                    temp.height = maxHeight;
+                    clientHealthBar.setLayoutParams(temp);
+                    try {
+                        otherPlayerOs.write(120);
+                        otherPlayerOs.flush();
+                    }
+                    catch(IOException ioe) {
+                        Log.e("PlayActivity", "couldn't finish match for client!");
+                        ioe.printStackTrace();
+                    }
+                    finally {
+                        closeOtherPlayerConnections();
+                    }
+                }
             }
         }, 0, 500, TimeUnit.MILLISECONDS);
+
+    }
+
+    private void closeOtherPlayerConnections() {
+        try {
+            otherPlayerOs.close();
+        }
+        catch(IOException ioe) {
+            ioe.printStackTrace();
+        }
+        try {
+            otherPlayerIn.close();
+        }
+        catch(IOException ioe) {
+            ioe.printStackTrace();
+        }
     }
 }
