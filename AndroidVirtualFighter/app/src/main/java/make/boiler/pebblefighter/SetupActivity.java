@@ -7,15 +7,14 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -143,18 +142,41 @@ public class SetupActivity extends Activity {
                             try {
                                 otherPlayerIn = socket.getInputStream();
                                 otherPlayerOut = socket.getOutputStream();
-                                int response = otherPlayerIn.read();
-                                if (response == 1) {
-                                    startGameAsClient(socket);
-                                } else {
-                                    Toast.makeText(SetupActivity.this, "Failed due to host rejection", Toast.LENGTH_LONG).show();
-                                    hostDialog.show();
-                                }
-                            } catch (IOException ioe) {
-                                ioe.printStackTrace();
-                                Toast.makeText(SetupActivity.this, "Couldn't read host response", Toast.LENGTH_LONG).show();
+                            }
+                            catch(IOException ioe) {
+                                Toast.makeText(SetupActivity.this, "Couldn't open connection with host", Toast.LENGTH_LONG).show();
                                 hostDialog.show();
                             }
+                            ProgressDialog hostResponseDialog = new ProgressDialog(SetupActivity.this);
+                            hostResponseDialog.setIndeterminate(true);
+                            hostResponseDialog.setTitle("Waiting for host response");
+                            hostResponseDialog.show();
+                            new AsyncTask<Void, Void, Integer>() {
+
+                                @Override
+                                protected Integer doInBackground(Void... params) {
+                                    try {
+                                        return otherPlayerIn.read();
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                        return null;
+                                    }
+                                }
+
+                                @Override
+                                protected void onPostExecute(Integer i) {
+                                    hostResponseDialog.dismiss(); 
+                                    if (i == 1) {
+                                        startGameAsClient(socket);
+                                    } else if (i == null) {
+                                        Toast.makeText(SetupActivity.this, "Couldn't read host response", Toast.LENGTH_LONG).show();
+                                        hostDialog.show();
+                                    } else {
+                                        Toast.makeText(SetupActivity.this, "Failed due to host rejection", Toast.LENGTH_LONG).show();
+                                        hostDialog.show();
+                                    }
+                                }
+                            }.execute();
                         });
 
                     }
@@ -189,7 +211,8 @@ public class SetupActivity extends Activity {
             hostSearch.setListener(hostAdapter::add);
             for (BluetoothDevice device : getBluetoothAdapter().getBondedDevices()) {
                 hostAdapter.add(device);
-            }            hostDialog.show();
+            }
+            hostDialog.show();
         } else if (isHost) {
             requestBluetoothDiscoverable();
         }
