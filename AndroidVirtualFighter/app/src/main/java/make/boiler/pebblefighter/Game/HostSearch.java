@@ -43,11 +43,6 @@ public class HostSearch {
 
     public void startSearch() {
         if(!isSearching) {
-            if (listener != null) {
-                for (BluetoothDevice device : bluetoothAdapter.getBondedDevices()) {
-                    listener.onDiscoverHost(device);
-                }
-            }
             boolean state = bluetoothAdapter.startDiscovery();
             IntentFilter filter = new IntentFilter();
             filter.addAction(BluetoothDevice.ACTION_FOUND);

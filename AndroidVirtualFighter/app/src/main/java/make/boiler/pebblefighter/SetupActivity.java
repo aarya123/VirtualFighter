@@ -10,11 +10,13 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.RadioButton;
 import android.widget.TextView;
@@ -96,7 +98,9 @@ public class SetupActivity extends Activity {
                 }
             };
             final AlertDialog hostDialog;
-            final ListView listView = new ListView(this);
+            View layout = LayoutInflater.from(this).inflate(R.layout.diag_multi_client, null);
+            ListView listView = (ListView) layout.findViewById(R.id.host_devices);
+            Button startSearchButton = (Button) layout.findViewById(R.id.scan_for_hosts);
             hostDialog = new AlertDialog.Builder(this)
                     .setTitle("Select Host")
                     .setOnCancelListener(new DialogInterface.OnCancelListener() {
@@ -106,20 +110,24 @@ public class SetupActivity extends Activity {
                             Toast.makeText(SetupActivity.this, "Aborting host search!", Toast.LENGTH_LONG).show();
                         }
                     })
-                    .setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                        @Override
-                        public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                            hostSearch.stopSearch();
-                            Toast.makeText(SetupActivity.this, "Selected host " + hostAdapter.getItem(position).getName(), Toast.LENGTH_LONG).show();
-                        }
-
-                        @Override
-                        public void onNothingSelected(AdapterView<?> parent) {
-
-                        }
-                    })
-                    .setView(listView)
+                    .setView(layout)
                     .create();
+            startSearchButton.setOnClickListener(new View.OnClickListener() {
+
+                boolean startSearch = true;
+
+                @Override
+                public void onClick(View v) {
+                    if (startSearch) {
+                        startSearchButton.setText("Stop Search");
+                        hostSearch.startSearch();
+                    } else {
+                        startSearchButton.setText("Start Search");
+                        hostSearch.stopSearch();
+                    }
+                    startSearch = !startSearch;
+                }
+            });
             listView.setAdapter(hostAdapter);
             listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
                 @Override
@@ -189,14 +197,12 @@ public class SetupActivity extends Activity {
                                                 @Override
                                                 public void onClick(DialogInterface dialog, int which) {
                                                     hostDialog.show();
-                                                    hostSearch.startSearch();
                                                 }
                                             })
                                             .setOnCancelListener(new DialogInterface.OnCancelListener() {
                                                 @Override
                                                 public void onCancel(DialogInterface dialog) {
                                                     hostDialog.show();
-                                                    hostSearch.startSearch();
                                                 }
                                             })
                                             .create()
@@ -219,8 +225,10 @@ public class SetupActivity extends Activity {
                 }
 
             });
+            for (BluetoothDevice device : getBluetoothAdapter().getBondedDevices()) {
+                hostAdapter.add(device);
+            }
             hostDialog.show();
-            hostSearch.startSearch();
         } else if (multiPlayerHost.isChecked()) {
             requestBluetoothDiscoverable();
         }
