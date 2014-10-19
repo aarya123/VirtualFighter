@@ -45,6 +45,7 @@ public class Player {
         } else {
             health -= 2;
         }
+        health = Math.max(0, health);
     }
 
     public void setHealth(int i) {

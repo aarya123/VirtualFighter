@@ -19,8 +19,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentRight="true"
-        android:layout_marginRight="10dp"
+        android:layout_centerHorizontal="true"
         android:layout_marginTop="75dp"
         android:text="Virtual Fighter"
         android:textColor="#ecf0f1"
@@ -36,62 +35,26 @@
         android:textColor="#ecf0f1" />
 
     <Button
-        android:id="@+id/hostMatch"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentLeft="true"
-        android:layout_below="@id/singlePlayer"
-        android:layout_marginLeft="50dp"
-        android:layout_marginTop="50dp"
-        android:background="@drawable/button_blue"
-        android:text="Host A Match"
-        android:textColor="#ecf0f1" />
-
-    <Button
         android:id="@+id/joinMatch"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentRight="true"
+        android:layout_centerHorizontal="true"
         android:layout_below="@id/singlePlayer"
-        android:layout_marginRight="50dp"
         android:layout_marginTop="50dp"
         android:background="@drawable/button_blue"
         android:text="Join A Match"
         android:textColor="#ecf0f1" />
 
-    <!--<RadioGroup
-        android:id="@+id/play_options"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_alignParentTop="true"
-        android:layout_alignParentLeft="true">
-
-        <RadioButton
-            android:id="@+id/single_player"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/single_player_desc" />
-
-        <RadioButton
-            android:text="@string/multi_player_host_desc"
-            android:id="@+id/multi_player_host"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
-
-        <RadioButton
-            android:text="@string/multi_player_client_desc"
-            android:id="@+id/multi_player_client"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
-    </RadioGroup>
-
     <Button
-        android:id="@+id/start_play"
-        android:layout_alignParentLeft="true"
-        android:layout_below="@id/play_options"
+        android:id="@+id/hostMatch"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/start_play" />-->
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="50dp"
+        android:layout_below="@id/joinMatch"
+        android:background="@drawable/button_blue"
+        android:text="Host A Match"
+        android:textColor="#ecf0f1" />
+
 
 </RelativeLayout>

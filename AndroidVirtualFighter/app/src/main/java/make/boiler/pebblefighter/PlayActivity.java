@@ -249,10 +249,10 @@ public class PlayActivity extends Activity {
             if (maxHeight == 0)
                 maxHeight = hostHealthBar.getHeight();
             LinearLayout.LayoutParams temp = (LinearLayout.LayoutParams) hostHealthBar.getLayoutParams();
-            temp.height = (int) (game.getHostHealth() / 100.0 * maxHeight);
+            temp.height = Math.max(0, (int) (game.getHostHealth() / 100.0 * maxHeight));
             hostHealthBar.setLayoutParams(temp);
             temp = (LinearLayout.LayoutParams) clientHealthBar.getLayoutParams();
-            temp.height = (int) (game.getClientHealth() / 100.0 * maxHeight);
+            temp.height = Math.max(0, (int) (game.getClientHealth() / 100.0 * maxHeight));
             clientHealthBar.setLayoutParams(temp);
             if(isHost) {
                 String result = game.isDone();

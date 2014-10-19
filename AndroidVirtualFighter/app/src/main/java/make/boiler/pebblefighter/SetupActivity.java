@@ -165,7 +165,7 @@ public class SetupActivity extends Activity {
 
                                 @Override
                                 protected void onPostExecute(Integer i) {
-                                    hostResponseDialog.dismiss(); 
+                                    hostResponseDialog.dismiss();
                                     if (i == 1) {
                                         startGameAsClient(socket);
                                     } else if (i == null) {

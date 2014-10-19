@@ -71,11 +71,11 @@ public class Game {
     public String isDone() {
         if (host.getHealth() > 0 && client.getHealth() > 0)
             return null;
-        else if (host.getHealth() < 0 && client.getHealth() < 0)
+        else if (host.getHealth() == 0 && client.getHealth() == 0)
             return "No one";
-        else if (host.getHealth() < 0)
+        else if (host.getHealth() == 0)
             return "Client";
-        else if (client.getHealth() < 0)
+        else if (client.getHealth() == 0)
             return "Host";
         else
             return null;
