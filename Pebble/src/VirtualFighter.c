@@ -147,7 +147,11 @@ void process_tuple(Tuple *t)
     }else if(prevHealth-value>2){
         vibes_double_pulse();
     }
-    snprintf(healthTextArr, 50, "Health=%d", value);
+    if(value<=0){
+        snprintf(healthTextArr, 50, "You lose!!!");
+    }else{
+        snprintf(healthTextArr, 50, "Health=%d", value);
+    }
     text_layer_set_text(healthText, healthTextArr);
     text_layer_set_text(healthTextBottom, healthTextArr);
     int prop=maxHeight*value/100;
